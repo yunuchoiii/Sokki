@@ -19,7 +19,18 @@
 (일반 / 인식 & 정리 / 단축키 / 고급 & 진단). 단축키는 프리셋 외에 칸을 클릭하고 원하는
 조합을 눌러 직접 정할 수 있습니다.
 
-## 빌드
+## 설치 (다운로드)
+
+1. [Releases](https://github.com/yunuchoiii/Sokki/releases) 에서 최신 `Sokki-x.y.z.dmg` 를 받습니다.
+2. 열어서 Sokki 를 Applications 폴더로 끌어 넣습니다.
+3. 응용 프로그램에서 Sokki 를 엽니다. **"확인되지 않은 개발자" 경고가 뜨면** 시스템 설정 >
+   개인정보 보호 및 보안 > 맨 아래 **"그래도 열기"** 를 누릅니다. 한 번만 하면 됩니다.
+   (애플 공증을 받지 않은 앱이라 뜨는 안내입니다. 개발자 계정이 생기면 없어집니다.)
+4. 메뉴바에 파형 아이콘이 생기면 끝. 처음엔 설정 창이 열려 주로 쓰는 분야를 고르게 합니다.
+
+DMG 를 직접 만들려면 `./make-dmg.sh`, `v*` 태그를 올리면 GitHub Actions 가 Release 에 자동으로 붙입니다.
+
+## 빌드 (소스에서)
 
 Xcode는 필요 없고 명령줄 도구만 있으면 됩니다.
 
@@ -81,7 +92,9 @@ Sources/
   Paster.swift          클립보드 백업 → 텍스트 주입 → Cmd+V 합성 → 클립보드 복원
   Prefs.swift           키체인 API 키 저장, UserDefaults 설정
 Info.plist              LSUIElement, 마이크/음성인식 권한 문구
-build.sh                swiftc(+SwiftUI) → .app 번들 → 애드혹 서명
+build.sh                swiftc(+SwiftUI) → .app 번들 → 아이콘 → 서명
+make-dmg.sh             build.sh 결과를 DMG 로 (Applications 끌어넣기 화면 + 첫 실행 안내)
+.github/workflows/      v* 태그 → macOS 러너 빌드 → Release 에 DMG 첨부
 ```
 
 동작 흐름:
