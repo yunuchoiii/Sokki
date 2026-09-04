@@ -247,13 +247,21 @@ struct PolishingView: View {
 
     var body: some View {
         VStack(spacing: 10) {
-            LogoMark(size: 32)
-            ProgressView().controlSize(.small)
+            SokkiLoader(size: 56)
+                .padding(.bottom, 2)
             Text("요약하고 있어요").font(.system(size: 14, weight: .semibold)).foregroundColor(.ink)
-            Text(model.backendTitle).font(.system(size: 11)).foregroundColor(.text3)
+            Text(model.polishNote.isEmpty ? model.backendTitle : model.polishNote)
+                .font(.system(size: 11)).foregroundColor(.text3)
+                .multilineTextAlignment(.center).padding(.horizontal, 20)
+
+            HStack(spacing: 8) {
+                OutlineButton("원문 복사") { model.actions.copyPendingRaw() }
+                OutlineButton("취소 — 원문 그대로 쓰기") { model.actions.cancelPolish() }
+            }
+            .padding(.horizontal, 16).padding(.top, 10)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 28)
+        .padding(.vertical, 24)
         .background(Color.paper)
     }
 }
@@ -351,6 +359,22 @@ struct DoneView: View {
             }
             .padding(.horizontal, 16).padding(.vertical, 12)
             .background(Color.paperSoft)
+
+            HairLine()
+
+            HStack {
+                Button(action: { model.phase = .idle }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.left").font(.system(size: 10, weight: .semibold))
+                        Text("처음으로")
+                    }
+                }
+                .buttonStyle(.plain)
+                Spacer()
+                Button("새 녹음", action: model.actions.startRecording).buttonStyle(.plain)
+            }
+            .font(.system(size: 12)).foregroundColor(.text3)
+            .padding(.horizontal, 16).padding(.vertical, 10)
         }
         .background(Color.paper)
     }

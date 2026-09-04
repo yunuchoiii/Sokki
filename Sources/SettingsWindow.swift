@@ -17,11 +17,12 @@ extension Notification.Name {
 final class SettingsModel: ObservableObject {
 
     enum Tab: String, CaseIterable, Identifiable {
-        case general, recognition, hotkey, advanced
+        case general, personal, recognition, hotkey, advanced
         var id: String { rawValue }
         var title: String {
             switch self {
             case .general:     return "일반"
+            case .personal:    return "개인화"
             case .recognition: return "인식 & 정리"
             case .hotkey:      return "단축키"
             case .advanced:    return "고급 & 진단"
@@ -30,6 +31,7 @@ final class SettingsModel: ObservableObject {
         var symbol: String {
             switch self {
             case .general:     return "smallcircle.filled.circle"
+            case .personal:    return "person.crop.circle"
             case .recognition: return "waveform.path"
             case .hotkey:      return "keyboard"
             case .advanced:    return "sparkles"
@@ -59,6 +61,16 @@ final class SettingsModel: ObservableObject {
     @Published var geminiModel = Prefs.geminiModel            { didSet { Prefs.geminiModel = geminiModel; changed() } }
     @Published var claudeModel = Prefs.model                  { didSet { Prefs.model = claudeModel; changed() } }
     @Published var cliPath = Prefs.cliPath ?? ""              { didSet { Prefs.cliPath = cliPath.isEmpty ? nil : cliPath; changed() } }
+    @Published var cliFallback = Prefs.cliFallback            { didSet { Prefs.cliFallback = cliFallback; changed() } }
+    @Published var speakerNote = Prefs.speakerNote            { didSet { Prefs.speakerNote = speakerNote } }
+    @Published var glossary = Prefs.glossary                  { didSet { Prefs.glossary = glossary } }
+    @Published var usageContexts = Prefs.usageContexts        { didSet { Prefs.usageContexts = usageContexts } }
+    /// 처음 실행 안내 배너
+    @Published var showOnboarding = !Prefs.onboarded
+
+    func toggleContext(_ c: UsageContext) {
+        if usageContexts.contains(c) { usageContexts.remove(c) } else { usageContexts.insert(c) }
+    }
 
     @Published var launchAtLogin = SMAppService.mainApp.status == .enabled
     @Published var launchAtLoginError = ""
@@ -144,6 +156,7 @@ struct SettingsView: View {
                 Group {
                     switch model.tab {
                     case .general:     GeneralPane(model: model)
+                    case .personal:    PersonalPane(model: model)
                     case .recognition: RecognitionPane(model: model)
                     case .hotkey:      HotKeyPane(model: model)
                     case .advanced:    AdvancedPane(model: model)
@@ -194,14 +207,14 @@ struct GeneralPane: View {
         VStack(alignment: .leading, spacing: 18) {
             SettingsSection("받아쓰기") {
                 SettingsRow(title: "받아쓰기 시작 단축키",
-                            subtitle: "칸을 클릭하고 조합을 누르세요. fn⌃ 처럼 수정자 키만 눌렀다 떼도 됩니다.",
-                            warning: model.hotKeyNeedsAccessibility ? "수정자 키만 쓰는 단축키는 손쉬운 사용 권한 필요 — 허용하기" : nil,
+                            subtitle: "칸을 클릭하고 원하는 조합을 누릅니다. fn⌃ 처럼 수정자 키만 눌렀다 떼도 됩니다.",
+                            warning: model.hotKeyNeedsAccessibility ? "수정자 키만 쓰는 단축키는 손쉬운 사용 권한이 필요합니다 — 허용하기" : nil,
                             warningAction: model.actions.openAccessibility) {
                     HotKeyRecorderField(model: model)
                 }
                 SettingsRow(title: "말을 멈추면 자동 요약",
-                            subtitle: model.autoStop ? "\(Int(model.silenceSeconds))초간 무음이 이어지면 자동으로 요약"
-                                                     : "끄면 단축키를 다시 누를 때만 요약 — 말하다 생각해도 안 끊김") {
+                            subtitle: model.autoStop ? "\(Int(model.silenceSeconds))초간 말이 없으면 자동으로 요약합니다."
+                                                     : "끄면 단축키를 다시 누를 때만 요약합니다. 말하다 생각해도 끊기지 않습니다.") {
                     HStack(spacing: 8) {
                         if model.autoStop {
                             PopupLabel(title: "\(Int(model.silenceSeconds))초",
@@ -227,24 +240,18 @@ struct GeneralPane: View {
                     InkToggle(isOn: $model.copyToClipboard)
                 }
                 SettingsRow(title: "커서 위치에 자동 붙여넣기",
-                            subtitle: model.accessibilityTrusted ? "손쉬운 사용(접근성) 권한 확인됨" : nil,
-                            warning: model.accessibilityTrusted ? nil : "손쉬운 사용(접근성) 권한 필요 — 허용하기",
+                            subtitle: model.accessibilityTrusted ? "손쉬운 사용(접근성) 권한이 있습니다." : nil,
+                            warning: model.accessibilityTrusted ? nil : "손쉬운 사용(접근성) 권한이 필요합니다 — 허용하기",
                             warningAction: model.actions.openAccessibility) {
                     InkToggle(isOn: $model.autoPaste)
                 }
                 if model.autoPaste {
-                    SettingsRow(title: "붙여넣기 후 클립보드 복원", subtitle: "자동 붙여넣기는 클립보드를 잠깐 빌려 씁니다. 켜면 붙여넣은 뒤 전에 복사해 둔 내용을 되돌려 놓고, 끄면 요약문이 클립보드에 남습니다.") {
+                    SettingsRow(title: "붙여넣기 후 클립보드 복원", subtitle: "자동 붙여넣기는 클립보드를 잠깐 빌려 씁니다. 켜면 붙여넣은 뒤 전에 복사해 둔 내용을 되돌려 놓고, 끄면 요약문을 클립보드에 남깁니다.") {
                         InkToggle(isOn: $model.restoreClipboard)
                     }
                 }
                 SettingsRow(title: "실패 시 시스템 알림 표시", subtitle: nil, last: true) {
                     InkToggle(isOn: $model.showErrorAlerts)
-                }
-            }
-
-            SettingsSection("화면") {
-                SettingsRow(title: "화면 모드", subtitle: "팝오버와 설정 창에 적용", last: true) {
-                    Segmented(options: Prefs.Appearance.allCases.map { ($0, $0.title) }, selection: $model.appearance)
                 }
             }
 
@@ -260,6 +267,23 @@ struct GeneralPane: View {
     }
 }
 
+// MARK: 개인화 — 나에 맞춘 것들
+
+struct PersonalPane: View {
+    @ObservedObject var model: SettingsModel
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            UsageContextSection(model: model)
+
+            SettingsSection("화면") {
+                SettingsRow(title: "화면 모드", subtitle: "팝오버와 설정 창에 적용합니다.", last: true) {
+                    Segmented(options: Prefs.Appearance.allCases.map { ($0, $0.title) }, selection: $model.appearance)
+                }
+            }
+        }
+    }
+}
+
 // MARK: 2b 인식 & 정리
 
 struct RecognitionPane: View {
@@ -268,27 +292,35 @@ struct RecognitionPane: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             SettingsSection("음성 인식") {
-                SettingsRow(title: "애플 서버 인식 강제", subtitle: "온디바이스 인식을 끄고 서버 인식 사용 (정확도 ↑)", last: true) {
+                SettingsRow(title: "음성 인식을 애플 서버에서 처리",
+                            subtitle: "켜면 더 정확하지만 인터넷이 필요하고 한 번에 약 1분까지 인식합니다. 끄면 인터넷 없이 이 맥에서만 인식합니다.",
+                            last: true) {
                     InkToggle(isOn: $model.forceServer)
                 }
             }
 
-            SettingsSection("정리 (요약)") {
-                SettingsRow(title: "AI 로 정리하기", subtitle: "끄면 받아쓰기 원문을 그대로 붙여 넣음") {
+            SettingsSection("요약") {
+                SettingsRow(title: "AI 로 정리하기", subtitle: "끄면 받아쓰기 원문을 그대로 붙여 넣습니다.") {
                     InkToggle(isOn: $model.polishEnabled)
                 }
-                SettingsRow(title: "정리 백엔드", subtitle: backendHint) {
-                    Segmented(options: Prefs.Backend.allCases.map { ($0, $0.shortTitle) }, selection: $model.backend)
+                SettingsRow(title: "AI 모델", subtitle: backendHint) {
+                    PopupLabel(title: model.backend.shortTitle,
+                               options: Prefs.Backend.allCases.map(\.shortTitle),
+                               selected: Prefs.Backend.allCases.firstIndex(of: model.backend)) {
+                        model.backend = Prefs.Backend.allCases[$0]
+                    }
                 }
-                SettingsRow(title: "정리 스타일", subtitle: "요약 결과의 형식") {
+                SettingsRow(title: "정리 스타일", subtitle: "요약 결과의 말투와 형식을 정합니다.") {
                     PopupLabel(title: model.style.title,
                                options: PolishStyle.allCases.map(\.title),
                                selected: PolishStyle.allCases.firstIndex(of: model.style)) {
                         model.style = PolishStyle.allCases[$0]
                     }
                 }
-                SettingsRow(title: "모델", subtitle: modelHint, last: true) {
-                    if model.backend == .gemini {
+                SettingsRow(title: "세부 모델", subtitle: modelHint, last: model.backend == .apple) {
+                    if model.backend == .apple {
+                        Text("이 맥의 Apple Intelligence 모델을 씁니다.").font(.system(size: 12)).foregroundColor(.text3)
+                    } else if model.backend == .gemini || model.backend == .auto {
                         PopupLabel(title: model.geminiModel, options: Prefs.geminiModels,
                                    selected: Prefs.geminiModels.firstIndex(of: model.geminiModel)) {
                             model.geminiModel = Prefs.geminiModels[$0]
@@ -300,13 +332,22 @@ struct RecognitionPane: View {
                         }
                     }
                 }
+                if model.backend != .apple {
+                    SettingsRow(title: "AI 모델이 모두 안 될 때 Claude Code 로 재시도",
+                                subtitle: "10~60초 걸려서 기본은 꺼 둡니다. 끄면 원문을 바로 복사하고 '다시 요약' 버튼을 보여 줍니다.",
+                                last: true) {
+                        InkToggle(isOn: $model.cliFallback)
+                    }
+                }
             }
 
-            SettingsSection(model.backend == .cli ? "Claude Code CLI" : "API 키") {
-                if model.backend == .cli {
-                    CLIPathRow(model: model)
-                } else {
-                    APIKeyRow(slot: model.backend == .gemini ? .gemini : .anthropic)
+            if model.backend != .apple {
+                SettingsSection(model.backend == .cli ? "Claude Code CLI" : "API 키") {
+                    if model.backend == .cli {
+                        CLIPathRow(model: model)
+                    } else {
+                        APIKeyRow(slot: (model.backend == .gemini || model.backend == .auto) ? .gemini : .anthropic)
+                    }
                 }
             }
         }
@@ -314,23 +355,33 @@ struct RecognitionPane: View {
 
     private var backendHint: String {
         switch model.backend {
-        case .gemini: return "Google AI Studio 무료 키 · 1~4초"
-        case .api:    return "Anthropic 크레딧 · 1초 안팎"
-        case .cli:    return "claude.ai 구독 사용량 · 10~20초"
+        case .auto:   return AppleClient.availability().ok
+                             ? "추천. 이 맥의 Apple AI 와 Gemini 를 함께 써서 빠르고 나은 답을 고릅니다."
+                             : "이 맥의 Apple AI 를 쓸 수 없어 Gemini 만 사용합니다."
+        case .gemini: return "구글 AI 입니다. 무료 키로 쓸 수 있고 1~5초 걸리며, 혼잡할 땐 실패하기도 합니다."
+        case .apple:  return AppleClient.availability().note
+        case .api:    return "Anthropic 의 Claude 입니다. 유료 크레딧이 필요하고 1초 안팎 걸립니다."
+        case .cli:    return "Claude Code 구독으로 처리합니다. 10~60초로 느립니다."
         }
     }
 
     private var modelHint: String {
-        model.backend == .gemini ? "503이 잦으면 다른 모델로 자동 전환됩니다" : "정리는 가벼워서 Haiku 로 충분"
+        switch model.backend {
+        case .gemini, .auto: return "Gemini 안에서 먼저 쓸 모델입니다. 늦으면 다른 모델도 같이 씁니다."
+        case .apple:  return "인터넷을 쓰지 않습니다."
+        default:      return "정리는 가벼운 일이라 Haiku 로 충분합니다."
+        }
     }
 }
 
 private extension Prefs.Backend {
     var shortTitle: String {
         switch self {
+        case .auto:   return "AUTO"
         case .gemini: return "Gemini"
+        case .apple:  return "Apple AI (이 맥)"
         case .api:    return "Claude API"
-        case .cli:    return "Claude CLI"
+        case .cli:    return "Claude Code"
         }
     }
 }
@@ -340,6 +391,24 @@ struct APIKeyRow: View {
     @State private var editing = false
     @State private var draft = ""
     @State private var saved: String = ""
+    @State private var showHelp = false
+
+    private var issueURL: String {
+        slot == .gemini ? "https://aistudio.google.com/apikey" : "https://console.anthropic.com/settings/keys"
+    }
+
+    /// 비개발자용 발급 안내. ? 버튼을 누르면 말풍선으로 뜬다.
+    private var helpSteps: [String] {
+        slot == .gemini
+        ? ["아래 '발급 페이지 열기'를 누르면 Google AI Studio 가 열립니다. 구글 계정으로 로그인하세요.",
+           "파란 'API 키 만들기(Create API key)' 버튼을 누릅니다. 프로젝트를 고르라고 하면 아무거나 골라도 됩니다.",
+           "AIza… 로 시작하는 긴 문자열이 나옵니다. 복사 버튼을 누르세요.",
+           "여기 '입력' 버튼을 누르고 붙여넣은 뒤 저장하면 끝. 무료이고 카드 등록도 필요 없습니다."]
+        : ["아래 '발급 페이지 열기'를 누르면 Anthropic 콘솔이 열립니다. 로그인하세요.",
+           "'Create Key' 를 눌러 이름을 정하고 키를 만듭니다. sk-ant-… 로 시작합니다.",
+           "키는 그때 한 번만 보여 주니 바로 복사하세요.",
+           "Billing 에서 크레딧을 조금 충전해야 동작합니다. 한 번 요약에 5원 안팎입니다."]
+    }
 
     private var masked: String {
         guard !saved.isEmpty else { return "키 없음" }
@@ -366,6 +435,32 @@ struct APIKeyRow: View {
                         .background(Color.fill).cornerRadius(7)
                     SmallButton(saved.isEmpty ? "입력" : "변경", filled: true) { draft = ""; editing = true }
                 }
+                Button(action: { showHelp.toggle() }) {
+                    Image(systemName: "questionmark.circle").font(.system(size: 15)).foregroundColor(.text3)
+                        .frame(width: 24, height: 28).contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("키 받는 방법")
+                .popover(isPresented: $showHelp, arrowEdge: .bottom) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text(slot == .gemini ? "Gemini API 키 받는 법 (무료)" : "Claude API 키 받는 법")
+                            .font(.system(size: 13, weight: .bold))
+                        ForEach(Array(helpSteps.enumerated()), id: \.offset) { i, step in
+                            HStack(alignment: .top, spacing: 8) {
+                                Text("\(i + 1)").font(.system(size: 11, weight: .bold))
+                                    .frame(width: 18, height: 18).background(Color.primary.opacity(0.08)).cornerRadius(9)
+                                Text(step).font(.system(size: 12)).lineSpacing(2)
+                            }
+                        }
+                        HStack {
+                            Spacer()
+                            Button("발급 페이지 열기") {
+                                if let u = URL(string: issueURL) { NSWorkspace.shared.open(u) }
+                            }
+                        }
+                    }
+                    .padding(16).frame(width: 340)
+                }
             }
             HStack(spacing: 6) {
                 Circle().fill(saved.isEmpty ? Color.coral : Color.green).frame(width: 6, height: 6)
@@ -374,12 +469,9 @@ struct APIKeyRow: View {
                                         : "console.anthropic.com 에서 발급 · 크레딧 충전 필요")
                      : "키 확인됨 · " + KeychainStore.storageDescription)
                     .font(.system(size: 11)).foregroundColor(.text3)
-                if saved.isEmpty {
-                    Button("발급 페이지 열기") {
-                        let url = slot == .gemini ? "https://aistudio.google.com/apikey" : "https://console.anthropic.com"
-                        if let u = URL(string: url) { NSWorkspace.shared.open(u) }
-                    }.buttonStyle(.link).font(.system(size: 11))
-                }
+                Button("발급 페이지 열기") {
+                    if let u = URL(string: issueURL) { NSWorkspace.shared.open(u) }
+                }.buttonStyle(.link).font(.system(size: 11))
             }
         }
         .padding(14)
@@ -412,8 +504,8 @@ struct HotKeyPane: View {
         VStack(alignment: .leading, spacing: 18) {
             SettingsSection("직접 설정") {
                 SettingsRow(title: "받아쓰기 시작 / 종료",
-                            subtitle: "칸을 클릭하고 조합을 누르세요. ⌃⌥D 처럼 수정자+키, 또는 fn⌃ 처럼 수정자 키만 눌렀다 떼기.",
-                            warning: model.hotKeyNeedsAccessibility ? "수정자 키만 쓰는 단축키는 손쉬운 사용 권한 필요 — 허용하기" : nil,
+                            subtitle: "칸을 클릭하고 원하는 조합을 누릅니다. ⌃⌥D 처럼 수정자+키, 또는 fn⌃ 처럼 수정자 키만 눌렀다 떼도 됩니다.",
+                            warning: model.hotKeyNeedsAccessibility ? "수정자 키만 쓰는 단축키는 손쉬운 사용 권한이 필요합니다 — 허용하기" : nil,
                             warningAction: model.actions.openAccessibility,
                             last: true) {
                     HotKeyRecorderField(model: model)
@@ -436,7 +528,7 @@ struct HotKeyPane: View {
                     if i < HotKeyPreset.all.count - 1 { HairLine().padding(.leading, 14) }
                 }
             }
-            Text("단축키는 접근성 권한 없이도 어느 앱에서나 동작합니다. 다른 앱이 같은 조합을 쓰면 등록에 실패할 수 있어요. ⌘ 단독 조합(⌘C 등)은 다른 앱과 겹치기 쉬우니 ⌃⌥ 를 권합니다.")
+            Text("단축키는 접근성 권한 없이도 어느 앱에서나 동작합니다. 다른 앱이 같은 조합을 쓰면 등록에 실패할 수 있습니다. ⌘ 단독 조합(⌘C 등)은 다른 앱과 겹치기 쉬우니 ⌃⌥ 를 권합니다.")
                 .font(.system(size: 11)).foregroundColor(.text3)
         }
     }
@@ -449,17 +541,17 @@ struct AdvancedPane: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             SettingsSection("진단") {
-                ActionRow("현재 상태 진단", "권한 4종, 인식 언어, 키 유무를 한 화면에", action: model.actions.showDiagnostics)
-                ActionRow("정리 백엔드 연결 테스트", "짧은 문장을 실제로 정리해 봅니다", action: model.actions.testBackend)
-                ActionRow("붙여넣기 테스트", "3초 뒤 커서 위치에 텍스트를 넣습니다 (자동 붙여넣기 켜져 있어야 함)", action: model.actions.testPaste)
-                ActionRow("Gemini 모델 목록", "이 키로 쓸 수 있는 모델을 조회", action: model.actions.listGeminiModels)
-                ActionRow("Claude Code CLI 확인", "경로·버전·로그인 상태", action: model.actions.checkCLI)
-                ActionRow("CLI 플래그 캐시 초기화", "미지원으로 기억해 둔 플래그를 지움", action: model.actions.resetCLIFlags)
+                ActionRow("현재 상태 진단", "권한 4종, 인식 언어, 키 유무를 한 화면에 보여 줍니다.", action: model.actions.showDiagnostics)
+                ActionRow("AI 모델 연결 테스트", "짧은 문장을 실제로 정리해 봅니다.", action: model.actions.testBackend)
+                ActionRow("붙여넣기 테스트", "3초 뒤 커서 위치에 텍스트를 넣습니다. 자동 붙여넣기가 켜져 있어야 합니다.", action: model.actions.testPaste)
+                ActionRow("Gemini 모델 목록", "이 키로 쓸 수 있는 모델을 조회합니다.", action: model.actions.listGeminiModels)
+                ActionRow("Claude Code CLI 확인", "경로·버전·로그인 상태를 확인합니다.", action: model.actions.checkCLI)
+                ActionRow("CLI 플래그 캐시 초기화", "미지원으로 기억해 둔 플래그를 지웁니다.", action: model.actions.resetCLIFlags)
                 ActionRow("로그 열기", Log.url.path, action: model.actions.openLog, last: true)
             }
             SettingsSection("시스템") {
-                ActionRow("받아쓰기 설정 열기", "시스템 설정 > 키보드 > 받아쓰기가 꺼져 있으면 인식이 안 됩니다", action: model.actions.openDictationSettings)
-                ActionRow("손쉬운 사용 권한 열기", "자동 붙여넣기에 필요", action: model.actions.openAccessibility, last: true)
+                ActionRow("받아쓰기 설정 열기", "시스템 설정 > 키보드 > 받아쓰기가 꺼져 있으면 인식이 되지 않습니다.", action: model.actions.openDictationSettings)
+                ActionRow("손쉬운 사용 권한 열기", "자동 붙여넣기에 필요합니다.", action: model.actions.openAccessibility, last: true)
             }
         }
     }
@@ -731,5 +823,96 @@ struct HotKeyRecorderField: View {
         recording = false
         heldModifiers = ""
         NotificationCenter.default.post(name: .sokkiHotKeyCaptureEnded, object: nil)
+    }
+}
+
+
+// MARK: - 사용 분야·상황
+
+/// 체크한 분야의 설명과 용어가 정리 프롬프트에 들어간다. 프롬프트에 특정 직군 용어를 박아 두지 않기 위한 장치.
+struct UsageContextSection: View {
+    @ObservedObject var model: SettingsModel
+    @State private var showExtras = false
+
+    private let columns = [GridItem(.flexible()), GridItem(.flexible())]
+
+    var body: some View {
+        SettingsSection("주로 어디에 쓰나요?") {
+            VStack(alignment: .leading, spacing: 12) {
+                if model.showOnboarding {
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: "sparkles").foregroundColor(.coral)
+                        Text("처음이시군요. 주로 쓰는 분야와 상황을 골라 주세요. 골라 둔 분야의 용어(예: 개발이면 README·레포·React)를 받아쓰기가 잘못 들어도 바로잡습니다. 여러 개 골라도 됩니다.")
+                            .font(.system(size: 12)).foregroundColor(.ink).lineSpacing(2)
+                    }
+                    .padding(12)
+                    .background(Color.coral.opacity(0.08))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.coral.opacity(0.35), lineWidth: 1))
+                    .cornerRadius(8)
+                }
+
+                LazyVGrid(columns: columns, spacing: 8) {
+                    ForEach(UsageContext.allCases) { c in
+                        let on = model.usageContexts.contains(c)
+                        Button(action: { model.toggleContext(c) }) {
+                            HStack(spacing: 8) {
+                                Image(systemName: on ? "checkmark.circle.fill" : "circle")
+                                    .font(.system(size: 13)).foregroundColor(on ? .ink : .text4)
+                                Image(systemName: c.symbol).font(.system(size: 11)).foregroundColor(.text2).frame(width: 14)
+                                Text(c.title).font(.system(size: 12, weight: on ? .semibold : .regular)).foregroundColor(.ink)
+                                Spacer(minLength: 0)
+                            }
+                            .padding(.horizontal, 10).frame(height: 34)
+                            .background(on ? Color.fill : Color.clear)
+                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(on ? Color.lineStrong : Color.line, lineWidth: 1))
+                            .cornerRadius(8)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+
+                if model.showOnboarding {
+                    HStack {
+                        Spacer()
+                        SmallButton("이대로 시작", filled: true) {
+                            Prefs.onboarded = true
+                            model.showOnboarding = false
+                        }
+                    }
+                }
+
+                Button(action: { withAnimation(.easeInOut(duration: 0.15)) { showExtras.toggle() } }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: showExtras ? "chevron.down" : "chevron.right").font(.system(size: 10, weight: .semibold))
+                        Text("직접 추가 — 내 소개, 자주 쓰는 용어")
+                    }
+                    .font(.system(size: 12)).foregroundColor(.text2)
+                }
+                .buttonStyle(.plain)
+
+                if showExtras {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("내 소개 (선택)").font(.system(size: 12, weight: .semibold)).foregroundColor(.ink)
+                        Text("예) 시큐어로그에서 SCSM 이라는 사내 솔루션을 만듭니다.")
+                            .font(.system(size: 11)).foregroundColor(.text3)
+                        TextEditor(text: $model.speakerNote)
+                            .font(.system(size: 12)).frame(height: 48)
+                            .padding(6).background(Color.fill).cornerRadius(7)
+                            .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.lineStrong, lineWidth: 1))
+                    }
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("추가 용어 (선택)").font(.system(size: 12, weight: .semibold)).foregroundColor(.ink)
+                        Text("한 줄에 하나씩 적습니다. \"잘못 들린 말 → 올바른 표기\" 또는 단어만 적어도 됩니다. 예) 에스씨에스엠 → SCSM")
+                            .font(.system(size: 11)).foregroundColor(.text3)
+                        TextEditor(text: $model.glossary)
+                            .font(.system(size: 12, design: .monospaced)).frame(height: 90)
+                            .padding(6).background(Color.fill).cornerRadius(7)
+                            .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.lineStrong, lineWidth: 1))
+                    }
+                }
+            }
+            .padding(14)
+        }
     }
 }

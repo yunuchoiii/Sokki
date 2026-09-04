@@ -205,3 +205,62 @@ struct LogoMark: View {
         .frame(width: size, height: size)
     }
 }
+
+// MARK: - 로더 (sokki-loader.json 로띠를 SwiftUI 로 옮김)
+//
+// 120×120, 30fps, 96프레임 루프. 우리 로고 경로를 3.75배 한 좌표라 LogoWave 를 그대로 쓴다.
+//   파형: trim end 0→100 (0~35f), trim start 0→100 (55~75f)
+//   점:   불투명도 0→100 (37~45f), 100→0 (80~90f) · 크기 0→130% (37~49f) →100% (49~55f) →0 (80~90f)
+
+struct SokkiLoader: View {
+    var size: CGFloat = 56
+    var wave: Color = .ink
+    var dot: Color = .coral
+    /// 미리보기용: 지정하면 그 프레임에 멈춘다
+    var fixedFrame: Double? = nil
+
+    private let fps: Double = 30
+    private let frames: Double = 96
+    private let start = Date()
+
+    var body: some View {
+        TimelineView(.animation) { context in
+            let elapsed = context.date.timeIntervalSince(start)
+            let f = fixedFrame ?? (elapsed * fps).truncatingRemainder(dividingBy: frames)
+            let s = size / Logo.viewBox
+            let trimEnd = ramp(f, 0, 35, 0, 1, easeInOut)
+            let trimStart = ramp(f, 55, 75, 0, 1, easeInOut)
+            let dotOpacity = f < 80 ? ramp(f, 37, 45, 0, 1, easeOut) : ramp(f, 80, 90, 1, 0, easeIn)
+            let dotScale: Double = {
+                if f < 49 { return ramp(f, 37, 49, 0, 1.3, easeOut) }
+                if f < 55 { return ramp(f, 49, 55, 1.3, 1, easeInOut) }
+                if f < 80 { return 1 }
+                return ramp(f, 80, 90, 1, 0, easeIn)
+            }()
+
+            ZStack(alignment: .topLeading) {
+                LogoWave()
+                    .trim(from: trimStart, to: max(trimStart, trimEnd))
+                    .stroke(wave, style: StrokeStyle(lineWidth: Logo.strokeWidth * s, lineCap: .round, lineJoin: .round))
+                Circle()
+                    .fill(dot)
+                    .frame(width: Logo.dotRadius * 2 * s, height: Logo.dotRadius * 2 * s)
+                    .scaleEffect(dotScale)
+                    .opacity(dotOpacity)
+                    .offset(x: (Logo.dotCenter.x - Logo.dotRadius) * s,
+                            y: (Logo.dotCenter.y - Logo.dotRadius) * s)
+            }
+            .frame(width: size, height: size)
+        }
+    }
+
+    private func ramp(_ f: Double, _ f0: Double, _ f1: Double, _ v0: Double, _ v1: Double,
+                      _ ease: (Double) -> Double) -> Double {
+        if f <= f0 { return v0 }
+        if f >= f1 { return v1 }
+        return v0 + (v1 - v0) * ease((f - f0) / (f1 - f0))
+    }
+    private func easeInOut(_ t: Double) -> Double { t < 0.5 ? 2 * t * t : 1 - pow(-2 * t + 2, 2) / 2 }
+    private func easeOut(_ t: Double) -> Double { 1 - pow(1 - t, 3) }
+    private func easeIn(_ t: Double) -> Double { t * t * t }
+}

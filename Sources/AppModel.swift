@@ -45,6 +45,10 @@ final class AppModel: ObservableObject {
     @Published var localeID = Prefs.localeID
     @Published var autoStop = Prefs.autoStopOnSilence
     @Published var backendTitle = Prefs.backend.title
+    /// 요약 중 화면의 진행 상황 한 줄
+    @Published var polishNote = ""
+    /// 지금 요약 중인 원문. 취소·원문 복사 버튼용.
+    @Published var pendingRaw = ""
 
     /// 뷰가 호출하는 동작. AppDelegate가 채운다.
     struct Actions {
@@ -59,6 +63,8 @@ final class AppModel: ObservableObject {
         var delete: (SummaryRecord) -> Void = { _ in }
         var openLog: () -> Void = {}
         var dismissError: () -> Void = {}
+        var cancelPolish: () -> Void = {}
+        var copyPendingRaw: () -> Void = {}
     }
     var actions = Actions()
 
