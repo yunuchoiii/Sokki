@@ -42,7 +42,7 @@ echo "▶ 빌드 대상: $TARGET"
 # 우선순위: SOKKI_SIGN_ID 지정 > Developer ID Application(배포·공증) > 로컬 고정 인증서 > 애드혹
 # Developer ID 는 하드닝 런타임 + entitlements + 타임스탬프로 서명해야 공증이 통과한다.
 # 로컬 개발 중에 Developer ID 를 건너뛰려면 SOKKI_LOCAL_SIGN=1.
-DEV_ID="$(security find-identity -v -p codesigning 2>/dev/null | grep -o '"Developer ID Application: [^"]*"' | head -1 | tr -d '"')"
+DEV_ID="$(security find-identity -v -p codesigning 2>/dev/null | grep -o '"Developer ID Application: [^"]*"' | head -1 | tr -d '"' || true)"
 DISTRIBUTION=0
 if [[ -n "${SOKKI_SIGN_ID:-}" ]]; then
   SIGN_ID="$SOKKI_SIGN_ID"
