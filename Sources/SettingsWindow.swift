@@ -302,7 +302,11 @@ struct RecognitionPane: View {
                     InkToggle(isOn: $model.polishEnabled)
                 }
                 SettingsRow(title: "정리 백엔드", subtitle: backendHint) {
-                    Segmented(options: Prefs.Backend.allCases.map { ($0, $0.shortTitle) }, selection: $model.backend)
+                    PopupLabel(title: model.backend.shortTitle,
+                               options: Prefs.Backend.allCases.map(\.shortTitle),
+                               selected: Prefs.Backend.allCases.firstIndex(of: model.backend)) {
+                        model.backend = Prefs.Backend.allCases[$0]
+                    }
                 }
                 SettingsRow(title: "정리 스타일", subtitle: "요약 결과의 형식") {
                     PopupLabel(title: model.style.title,
@@ -350,8 +354,8 @@ struct RecognitionPane: View {
     private var backendHint: String {
         switch model.backend {
         case .auto:   return AppleClient.availability().ok
-                             ? "온디바이스와 Gemini 동시 요청 — 2초 안에 Gemini 가 답하면 그걸, 아니면 온디바이스"
-                             : "온디바이스를 못 써서 Gemini 만 사용 — " + AppleClient.availability().note
+                             ? "온디바이스 + Gemini 동시 요청, 빠르고 나은 쪽"
+                             : "온디바이스 사용 불가 — Gemini 만 사용"
         case .gemini: return "Google AI Studio 무료 키 · 1~5초, 혼잡하면 503"
         case .apple:  return AppleClient.availability().note
         case .api:    return "Anthropic 크레딧 · 1초 안팎"
@@ -371,11 +375,11 @@ struct RecognitionPane: View {
 private extension Prefs.Backend {
     var shortTitle: String {
         switch self {
-        case .auto:   return "자동"
-        case .gemini: return "Gemini"
-        case .apple:  return "Apple"
-        case .api:    return "Claude"
-        case .cli:    return "CLI"
+        case .auto:   return "AUTO"
+        case .gemini: return "Gemini API"
+        case .apple:  return "Apple 온디바이스"
+        case .api:    return "Claude API"
+        case .cli:    return "Claude CLI"
         }
     }
 }
