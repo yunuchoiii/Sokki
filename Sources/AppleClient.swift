@@ -32,22 +32,22 @@ struct AppleClient {
         if #available(macOS 26.0, *) {
             switch SystemLanguageModel.default.availability {
             case .available:
-                return (true, "이 맥 안에서 처리. 인터넷 없이 되고 1초 안팎")
+                return (true, "이 맥 안에서 처리합니다. 인터넷 없이 되고 1초 안팎 걸립니다.")
             case .unavailable(let reason):
                 switch reason {
                 case .appleIntelligenceNotEnabled:
-                    return (false, "Apple Intelligence 가 꺼져 있음 — 시스템 설정 > Apple Intelligence & Siri 에서 켜기")
+                    return (false, "Apple Intelligence 가 꺼져 있습니다. 시스템 설정 > Apple Intelligence & Siri 에서 켤 수 있습니다.")
                 case .deviceNotEligible:
-                    return (false, "이 맥은 Apple Intelligence 를 지원하지 않음")
+                    return (false, "이 맥은 Apple Intelligence 를 지원하지 않습니다.")
                 case .modelNotReady:
-                    return (false, "모델 다운로드 중 — 잠시 뒤 다시 시도")
+                    return (false, "모델을 내려받는 중입니다. 잠시 뒤 다시 시도합니다.")
                 @unknown default:
-                    return (false, "사용 불가 (\(reason))")
+                    return (false, "지금은 쓸 수 없습니다 (\(reason)).")
                 }
             }
         }
         #endif
-        return (false, "macOS 26 이상에서만 지원")
+        return (false, "macOS 26 이상에서만 지원합니다.")
     }
 
     func polish(_ raw: String,

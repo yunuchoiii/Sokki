@@ -207,14 +207,14 @@ struct GeneralPane: View {
         VStack(alignment: .leading, spacing: 18) {
             SettingsSection("받아쓰기") {
                 SettingsRow(title: "받아쓰기 시작 단축키",
-                            subtitle: "칸을 클릭하고 조합을 누르세요. fn⌃ 처럼 수정자 키만 눌렀다 떼도 됩니다.",
-                            warning: model.hotKeyNeedsAccessibility ? "수정자 키만 쓰는 단축키는 손쉬운 사용 권한 필요 — 허용하기" : nil,
+                            subtitle: "칸을 클릭하고 원하는 조합을 누릅니다. fn⌃ 처럼 수정자 키만 눌렀다 떼도 됩니다.",
+                            warning: model.hotKeyNeedsAccessibility ? "수정자 키만 쓰는 단축키는 손쉬운 사용 권한이 필요합니다 — 허용하기" : nil,
                             warningAction: model.actions.openAccessibility) {
                     HotKeyRecorderField(model: model)
                 }
                 SettingsRow(title: "말을 멈추면 자동 요약",
-                            subtitle: model.autoStop ? "\(Int(model.silenceSeconds))초간 무음이 이어지면 자동으로 요약"
-                                                     : "끄면 단축키를 다시 누를 때만 요약 — 말하다 생각해도 안 끊김") {
+                            subtitle: model.autoStop ? "\(Int(model.silenceSeconds))초간 말이 없으면 자동으로 요약합니다."
+                                                     : "끄면 단축키를 다시 누를 때만 요약합니다. 말하다 생각해도 끊기지 않습니다.") {
                     HStack(spacing: 8) {
                         if model.autoStop {
                             PopupLabel(title: "\(Int(model.silenceSeconds))초",
@@ -240,13 +240,13 @@ struct GeneralPane: View {
                     InkToggle(isOn: $model.copyToClipboard)
                 }
                 SettingsRow(title: "커서 위치에 자동 붙여넣기",
-                            subtitle: model.accessibilityTrusted ? "손쉬운 사용(접근성) 권한 확인됨" : nil,
-                            warning: model.accessibilityTrusted ? nil : "손쉬운 사용(접근성) 권한 필요 — 허용하기",
+                            subtitle: model.accessibilityTrusted ? "손쉬운 사용(접근성) 권한이 있습니다." : nil,
+                            warning: model.accessibilityTrusted ? nil : "손쉬운 사용(접근성) 권한이 필요합니다 — 허용하기",
                             warningAction: model.actions.openAccessibility) {
                     InkToggle(isOn: $model.autoPaste)
                 }
                 if model.autoPaste {
-                    SettingsRow(title: "붙여넣기 후 클립보드 복원", subtitle: "자동 붙여넣기는 클립보드를 잠깐 빌려 씁니다. 켜면 붙여넣은 뒤 전에 복사해 둔 내용을 되돌려 놓고, 끄면 요약문이 클립보드에 남습니다.") {
+                    SettingsRow(title: "붙여넣기 후 클립보드 복원", subtitle: "자동 붙여넣기는 클립보드를 잠깐 빌려 씁니다. 켜면 붙여넣은 뒤 전에 복사해 둔 내용을 되돌려 놓고, 끄면 요약문을 클립보드에 남깁니다.") {
                         InkToggle(isOn: $model.restoreClipboard)
                     }
                 }
@@ -276,7 +276,7 @@ struct PersonalPane: View {
             UsageContextSection(model: model)
 
             SettingsSection("화면") {
-                SettingsRow(title: "화면 모드", subtitle: "팝오버와 설정 창에 적용", last: true) {
+                SettingsRow(title: "화면 모드", subtitle: "팝오버와 설정 창에 적용합니다.", last: true) {
                     Segmented(options: Prefs.Appearance.allCases.map { ($0, $0.title) }, selection: $model.appearance)
                 }
             }
@@ -293,14 +293,14 @@ struct RecognitionPane: View {
         VStack(alignment: .leading, spacing: 18) {
             SettingsSection("음성 인식") {
                 SettingsRow(title: "음성 인식을 애플 서버에서 처리",
-                            subtitle: "켜면 더 정확하지만 인터넷이 필요하고 한 번에 약 1분까지. 끄면 인터넷 없이 이 맥에서만 인식합니다.",
+                            subtitle: "켜면 더 정확하지만 인터넷이 필요하고 한 번에 약 1분까지 인식합니다. 끄면 인터넷 없이 이 맥에서만 인식합니다.",
                             last: true) {
                     InkToggle(isOn: $model.forceServer)
                 }
             }
 
             SettingsSection("요약") {
-                SettingsRow(title: "AI 로 정리하기", subtitle: "끄면 받아쓰기 원문을 그대로 붙여 넣음") {
+                SettingsRow(title: "AI 로 정리하기", subtitle: "끄면 받아쓰기 원문을 그대로 붙여 넣습니다.") {
                     InkToggle(isOn: $model.polishEnabled)
                 }
                 SettingsRow(title: "AI 모델", subtitle: backendHint) {
@@ -310,7 +310,7 @@ struct RecognitionPane: View {
                         model.backend = Prefs.Backend.allCases[$0]
                     }
                 }
-                SettingsRow(title: "정리 스타일", subtitle: "요약 결과의 형식") {
+                SettingsRow(title: "정리 스타일", subtitle: "요약 결과의 말투와 형식을 정합니다.") {
                     PopupLabel(title: model.style.title,
                                options: PolishStyle.allCases.map(\.title),
                                selected: PolishStyle.allCases.firstIndex(of: model.style)) {
@@ -319,7 +319,7 @@ struct RecognitionPane: View {
                 }
                 SettingsRow(title: "세부 모델", subtitle: modelHint, last: model.backend == .apple) {
                     if model.backend == .apple {
-                        Text("이 맥의 Apple Intelligence 모델").font(.system(size: 12)).foregroundColor(.text3)
+                        Text("이 맥의 Apple Intelligence 모델을 씁니다.").font(.system(size: 12)).foregroundColor(.text3)
                     } else if model.backend == .gemini || model.backend == .auto {
                         PopupLabel(title: model.geminiModel, options: Prefs.geminiModels,
                                    selected: Prefs.geminiModels.firstIndex(of: model.geminiModel)) {
@@ -334,7 +334,7 @@ struct RecognitionPane: View {
                 }
                 if model.backend != .apple {
                     SettingsRow(title: "AI 모델이 모두 안 될 때 Claude Code 로 재시도",
-                                subtitle: "10~60초 걸려서 기본은 끔. 끄면 원문을 바로 복사하고 '다시 요약' 버튼을 줍니다.",
+                                subtitle: "10~60초 걸려서 기본은 꺼 둡니다. 끄면 원문을 바로 복사하고 '다시 요약' 버튼을 보여 줍니다.",
                                 last: true) {
                         InkToggle(isOn: $model.cliFallback)
                     }
@@ -356,20 +356,20 @@ struct RecognitionPane: View {
     private var backendHint: String {
         switch model.backend {
         case .auto:   return AppleClient.availability().ok
-                             ? "추천. 이 맥의 Apple AI 와 Gemini 를 함께 써서 빠르고 나은 답을 고릅니다"
-                             : "이 맥의 Apple AI 를 쓸 수 없어 Gemini 만 사용합니다"
-        case .gemini: return "구글 AI. 무료 키로 쓸 수 있고 1~5초, 혼잡할 땐 실패하기도"
+                             ? "추천. 이 맥의 Apple AI 와 Gemini 를 함께 써서 빠르고 나은 답을 고릅니다."
+                             : "이 맥의 Apple AI 를 쓸 수 없어 Gemini 만 사용합니다."
+        case .gemini: return "구글 AI 입니다. 무료 키로 쓸 수 있고 1~5초 걸리며, 혼잡할 땐 실패하기도 합니다."
         case .apple:  return AppleClient.availability().note
-        case .api:    return "Anthropic 의 Claude. 유료 크레딧 필요, 1초 안팎"
-        case .cli:    return "Claude Code 구독으로 처리. 10~60초로 느림"
+        case .api:    return "Anthropic 의 Claude 입니다. 유료 크레딧이 필요하고 1초 안팎 걸립니다."
+        case .cli:    return "Claude Code 구독으로 처리합니다. 10~60초로 느립니다."
         }
     }
 
     private var modelHint: String {
         switch model.backend {
-        case .gemini, .auto: return "Gemini 안에서 어떤 모델을 먼저 쓸지. 늦으면 다른 모델도 같이 씁니다"
-        case .apple:  return "인터넷을 쓰지 않습니다"
-        default:      return "정리는 가벼운 일이라 Haiku 로 충분합니다"
+        case .gemini, .auto: return "Gemini 안에서 먼저 쓸 모델입니다. 늦으면 다른 모델도 같이 씁니다."
+        case .apple:  return "인터넷을 쓰지 않습니다."
+        default:      return "정리는 가벼운 일이라 Haiku 로 충분합니다."
         }
     }
 }
@@ -504,8 +504,8 @@ struct HotKeyPane: View {
         VStack(alignment: .leading, spacing: 18) {
             SettingsSection("직접 설정") {
                 SettingsRow(title: "받아쓰기 시작 / 종료",
-                            subtitle: "칸을 클릭하고 조합을 누르세요. ⌃⌥D 처럼 수정자+키, 또는 fn⌃ 처럼 수정자 키만 눌렀다 떼기.",
-                            warning: model.hotKeyNeedsAccessibility ? "수정자 키만 쓰는 단축키는 손쉬운 사용 권한 필요 — 허용하기" : nil,
+                            subtitle: "칸을 클릭하고 원하는 조합을 누릅니다. ⌃⌥D 처럼 수정자+키, 또는 fn⌃ 처럼 수정자 키만 눌렀다 떼도 됩니다.",
+                            warning: model.hotKeyNeedsAccessibility ? "수정자 키만 쓰는 단축키는 손쉬운 사용 권한이 필요합니다 — 허용하기" : nil,
                             warningAction: model.actions.openAccessibility,
                             last: true) {
                     HotKeyRecorderField(model: model)
@@ -528,7 +528,7 @@ struct HotKeyPane: View {
                     if i < HotKeyPreset.all.count - 1 { HairLine().padding(.leading, 14) }
                 }
             }
-            Text("단축키는 접근성 권한 없이도 어느 앱에서나 동작합니다. 다른 앱이 같은 조합을 쓰면 등록에 실패할 수 있어요. ⌘ 단독 조합(⌘C 등)은 다른 앱과 겹치기 쉬우니 ⌃⌥ 를 권합니다.")
+            Text("단축키는 접근성 권한 없이도 어느 앱에서나 동작합니다. 다른 앱이 같은 조합을 쓰면 등록에 실패할 수 있습니다. ⌘ 단독 조합(⌘C 등)은 다른 앱과 겹치기 쉬우니 ⌃⌥ 를 권합니다.")
                 .font(.system(size: 11)).foregroundColor(.text3)
         }
     }
@@ -541,17 +541,17 @@ struct AdvancedPane: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             SettingsSection("진단") {
-                ActionRow("현재 상태 진단", "권한 4종, 인식 언어, 키 유무를 한 화면에", action: model.actions.showDiagnostics)
-                ActionRow("AI 모델 연결 테스트", "짧은 문장을 실제로 정리해 봅니다", action: model.actions.testBackend)
-                ActionRow("붙여넣기 테스트", "3초 뒤 커서 위치에 텍스트를 넣습니다 (자동 붙여넣기 켜져 있어야 함)", action: model.actions.testPaste)
-                ActionRow("Gemini 모델 목록", "이 키로 쓸 수 있는 모델을 조회", action: model.actions.listGeminiModels)
-                ActionRow("Claude Code CLI 확인", "경로·버전·로그인 상태", action: model.actions.checkCLI)
-                ActionRow("CLI 플래그 캐시 초기화", "미지원으로 기억해 둔 플래그를 지움", action: model.actions.resetCLIFlags)
+                ActionRow("현재 상태 진단", "권한 4종, 인식 언어, 키 유무를 한 화면에 보여 줍니다.", action: model.actions.showDiagnostics)
+                ActionRow("AI 모델 연결 테스트", "짧은 문장을 실제로 정리해 봅니다.", action: model.actions.testBackend)
+                ActionRow("붙여넣기 테스트", "3초 뒤 커서 위치에 텍스트를 넣습니다. 자동 붙여넣기가 켜져 있어야 합니다.", action: model.actions.testPaste)
+                ActionRow("Gemini 모델 목록", "이 키로 쓸 수 있는 모델을 조회합니다.", action: model.actions.listGeminiModels)
+                ActionRow("Claude Code CLI 확인", "경로·버전·로그인 상태를 확인합니다.", action: model.actions.checkCLI)
+                ActionRow("CLI 플래그 캐시 초기화", "미지원으로 기억해 둔 플래그를 지웁니다.", action: model.actions.resetCLIFlags)
                 ActionRow("로그 열기", Log.url.path, action: model.actions.openLog, last: true)
             }
             SettingsSection("시스템") {
-                ActionRow("받아쓰기 설정 열기", "시스템 설정 > 키보드 > 받아쓰기가 꺼져 있으면 인식이 안 됩니다", action: model.actions.openDictationSettings)
-                ActionRow("손쉬운 사용 권한 열기", "자동 붙여넣기에 필요", action: model.actions.openAccessibility, last: true)
+                ActionRow("받아쓰기 설정 열기", "시스템 설정 > 키보드 > 받아쓰기가 꺼져 있으면 인식이 되지 않습니다.", action: model.actions.openDictationSettings)
+                ActionRow("손쉬운 사용 권한 열기", "자동 붙여넣기에 필요합니다.", action: model.actions.openAccessibility, last: true)
             }
         }
     }
@@ -894,7 +894,7 @@ struct UsageContextSection: View {
                 if showExtras {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("내 소개 (선택)").font(.system(size: 12, weight: .semibold)).foregroundColor(.ink)
-                        Text("예) 시큐어로그에서 SCSM 이라는 사내 솔루션을 만든다.")
+                        Text("예) 시큐어로그에서 SCSM 이라는 사내 솔루션을 만듭니다.")
                             .font(.system(size: 11)).foregroundColor(.text3)
                         TextEditor(text: $model.speakerNote)
                             .font(.system(size: 12)).frame(height: 48)
@@ -903,7 +903,7 @@ struct UsageContextSection: View {
                     }
                     VStack(alignment: .leading, spacing: 4) {
                         Text("추가 용어 (선택)").font(.system(size: 12, weight: .semibold)).foregroundColor(.ink)
-                        Text("한 줄에 하나. \"잘못 들린 말 → 올바른 표기\" 또는 단어만. 예) 에스씨에스엠 → SCSM")
+                        Text("한 줄에 하나씩 적습니다. \"잘못 들린 말 → 올바른 표기\" 또는 단어만 적어도 됩니다. 예) 에스씨에스엠 → SCSM")
                             .font(.system(size: 11)).foregroundColor(.text3)
                         TextEditor(text: $model.glossary)
                             .font(.system(size: 12, design: .monospaced)).frame(height: 90)
