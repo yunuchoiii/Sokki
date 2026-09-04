@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>
+    <string>Sokki</string>
+    <key>CFBundleDisplayName</key>
+    <string>Sokki</string>
+    <key>CFBundleExecutable</key>
+    <string>Sokki</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.sokki.dictation</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>0.1.0</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>13.0</string>
+
+    <!-- Dock에 뜨지 않는 메뉴바 전용 앱 -->
+    <key>LSUIElement</key>
+    <true/>
+
+    <!-- 권한 요청 문구 -->
+    <key>NSMicrophoneUsageDescription</key>
+    <string>말한 내용을 텍스트로 받아쓰기 위해 마이크를 사용합니다.</string>
+    <key>NSSpeechRecognitionUsageDescription</key>
+    <string>녹음한 음성을 텍스트로 변환하기 위해 음성 인식을 사용합니다.</string>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>커서 위치에 텍스트를 붙여 넣기 위해 필요합니다.</string>
+</dict>
+</plist>

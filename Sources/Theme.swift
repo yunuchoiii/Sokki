@@ -1,0 +1,207 @@
+import AppKit
+import SwiftUI
+
+// MARK: - 팔레트 (시안 "Voice Summary App.dc.html" 에서 그대로 가져옴)
+
+extension NSColor {
+    convenience init(hex: UInt32) {
+        self.init(srgbRed: CGFloat((hex >> 16) & 0xff) / 255,
+                  green: CGFloat((hex >> 8) & 0xff) / 255,
+                  blue: CGFloat(hex & 0xff) / 255,
+                  alpha: 1)
+    }
+}
+
+enum Theme {
+    // 브랜드
+    static let ink        = NSColor(hex: 0x16181d)   // 잉크 블랙
+    static let inkDeep    = NSColor(hex: 0x101216)
+    static let coral      = NSColor(hex: 0xe0604a)   // 레코딩 코랄
+    static let coralDeep  = NSColor(hex: 0xc2452f)
+    static let coralLight = NSColor(hex: 0xff6b52)
+
+    // 라이트 화면
+    static let paper      = NSColor.white
+    static let paperSoft  = NSColor(hex: 0xfbfbfc)
+    static let fill       = NSColor(hex: 0xf2f3f5)
+    static let line       = NSColor(hex: 0xeceef1)
+    static let lineStrong = NSColor(hex: 0xdcdfe4)
+    static let text2      = NSColor(hex: 0x6f7580)
+    static let text3      = NSColor(hex: 0x8b909a)
+    static let text4      = NSColor(hex: 0xa6acb8)
+
+    // 완료 토스트
+    static let green       = NSColor(hex: 0x3f9e6e)
+    static let greenText   = NSColor(hex: 0x256b48)
+    static let greenSub    = NSColor(hex: 0x5e8e75)
+    static let greenBG     = NSColor(hex: 0xe9f4ee)
+    static let greenBorder = NSColor(hex: 0xcfe6d9)
+
+    // 다크(녹음 중) 화면
+    static let darkPanel = NSColor(hex: 0x1d2026)
+    static let darkCard  = NSColor(hex: 0x2a2d35)
+    static let darkLine  = NSColor(hex: 0x3a3e47)
+    static let darkMuted = NSColor(hex: 0x565b66)
+    static let darkText  = NSColor(hex: 0xcdd1d8)
+    static let darkSub   = NSColor(hex: 0x9ba0a9)
+}
+
+extension Theme {
+    /// 라이트/다크 자동 전환 색. 뷰의 appearance 에 따라 그릴 때 결정된다.
+    static func dyn(_ light: NSColor, _ dark: NSColor) -> NSColor {
+        NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? dark : light
+        }
+    }
+
+    // 다크 모드 짝 (시안은 라이트만 있어서 녹음 화면 팔레트를 바탕으로 정했다)
+    static let darkPaper     = NSColor(hex: 0x1d2026)
+    static let darkPaperSoft = NSColor(hex: 0x181b20)
+    static let darkFill      = NSColor(hex: 0x2a2d35)
+    static let darkHair      = NSColor(hex: 0x2e323a)
+    static let darkTextMain  = NSColor(hex: 0xf2f3f5)
+    static let darkGreenBG     = NSColor(hex: 0x1f2f27)
+    static let darkGreenBorder = NSColor(hex: 0x2c4a3a)
+    static let darkGreenText   = NSColor(hex: 0x8fd3b0)
+    static let darkGreenSub    = NSColor(hex: 0x6fa88a)
+
+    /// 팝오버 배경 뷰처럼 CGColor 가 필요한 곳 — 현재 모드에 맞춰 고정 색을 고른다.
+    static func paperColor(dark: Bool) -> NSColor { dark ? darkPaper : paper }
+}
+
+extension Color {
+    // 텍스트·면 — 모드에 따라 바뀜
+    static let ink        = Color(nsColor: Theme.dyn(Theme.ink, Theme.darkTextMain))      // 본문 글자
+    static let primaryFill = Color(nsColor: Theme.dyn(Theme.ink, Theme.darkTextMain))     // 검은 버튼·선택 핀
+    static let onPrimary  = Color(nsColor: Theme.dyn(.white, Theme.ink))                  // 그 위 글자
+    static let paper      = Color(nsColor: Theme.dyn(Theme.paper, Theme.darkPaper))
+    static let paperSoft  = Color(nsColor: Theme.dyn(Theme.paperSoft, Theme.darkPaperSoft))
+    static let fill       = Color(nsColor: Theme.dyn(Theme.fill, Theme.darkFill))
+    static let line       = Color(nsColor: Theme.dyn(Theme.line, Theme.darkHair))
+    static let lineStrong = Color(nsColor: Theme.dyn(Theme.lineStrong, Theme.darkLine))
+    static let text2      = Color(nsColor: Theme.dyn(Theme.text2, Theme.darkText))
+    static let text3      = Color(nsColor: Theme.dyn(Theme.text3, Theme.darkSub))
+    static let text4      = Color(nsColor: Theme.dyn(Theme.text4, Theme.darkMuted))
+    static let greenText  = Color(nsColor: Theme.dyn(Theme.greenText, Theme.darkGreenText))
+    static let greenSub   = Color(nsColor: Theme.dyn(Theme.greenSub, Theme.darkGreenSub))
+    static let greenBG    = Color(nsColor: Theme.dyn(Theme.greenBG, Theme.darkGreenBG))
+    static let greenBorder = Color(nsColor: Theme.dyn(Theme.greenBorder, Theme.darkGreenBorder))
+    static let coralDeep  = Color(nsColor: Theme.dyn(Theme.coralDeep, Theme.coralLight))
+
+    // 고정 색 — 녹음 화면(항상 다크)과 브랜드
+    static let inkFixed   = Color(nsColor: Theme.ink)
+    static let coral      = Color(nsColor: Theme.coral)
+    static let green      = Color(nsColor: Theme.green)
+    static let darkPanel  = Color(nsColor: Theme.darkPanel)
+    static let darkCard   = Color(nsColor: Theme.darkCard)
+    static let darkLine   = Color(nsColor: Theme.darkLine)
+    static let darkMuted  = Color(nsColor: Theme.darkMuted)
+    static let darkText   = Color(nsColor: Theme.darkText)
+    static let darkSub    = Color(nsColor: Theme.darkSub)
+}
+
+// MARK: - 로고 "말의 파형이 하나의 점(요점)으로"
+//
+// 시안의 SVG (viewBox 0 0 32 32):
+//   <path d="M4 21 C7 8, 10.5 8, 13.5 16 C15.5 21.5, 18 21.5, 20.5 16" stroke-width="3" stroke-linecap="round"/>
+//   <circle cx="26.5" cy="16" r="3"/>
+
+enum Logo {
+
+    static let viewBox: CGFloat = 32
+    static let dotCenter = CGPoint(x: 26.5, y: 16)
+    static let dotRadius: CGFloat = 3
+    static let strokeWidth: CGFloat = 3
+
+    /// y축이 아래로 향하는(SVG와 같은) 좌표계 기준 파형 경로.
+    static func wave(scale s: CGFloat, offset o: CGPoint = .zero) -> NSBezierPath {
+        let p = NSBezierPath()
+        func pt(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: o.x + x * s, y: o.y + y * s) }
+        p.move(to: pt(4, 21))
+        p.curve(to: pt(13.5, 16), controlPoint1: pt(7, 8), controlPoint2: pt(10.5, 8))
+        p.curve(to: pt(20.5, 16), controlPoint1: pt(15.5, 21.5), controlPoint2: pt(18, 21.5))
+        p.lineWidth = strokeWidth * s
+        p.lineCapStyle = .round
+        p.lineJoinStyle = .round
+        return p
+    }
+
+    static func dot(scale s: CGFloat, offset o: CGPoint = .zero) -> NSBezierPath {
+        let r = dotRadius * s
+        let c = CGPoint(x: o.x + dotCenter.x * s, y: o.y + dotCenter.y * s)
+        return NSBezierPath(ovalIn: CGRect(x: c.x - r, y: c.y - r, width: 2 * r, height: 2 * r))
+    }
+
+    /// 파형+점을 한 색으로 그린 정사각 이미지.
+    static func mark(size: CGFloat, wave waveColor: NSColor, dot dotColor: NSColor) -> NSImage {
+        NSImage(size: NSSize(width: size, height: size), flipped: true) { _ in
+            let s = size / viewBox
+            waveColor.setStroke()
+            wave(scale: s).stroke()
+            dotColor.setFill()
+            dot(scale: s).fill()
+            return true
+        }
+    }
+
+    /// 메뉴바 템플릿 아이콘. 시스템이 밝기에 맞춰 색을 입힌다.
+    static func menuBarIcon() -> NSImage {
+        let image = mark(size: 18, wave: .black, dot: .black)
+        image.isTemplate = true
+        return image
+    }
+
+    /// 앱 아이콘: 잉크 블랙 둥근 사각형 + 흰 파형 + 코랄 점.
+    static func appIcon(size: CGFloat = 512) -> NSImage {
+        NSImage(size: NSSize(width: size, height: size), flipped: true) { rect in
+            let inset = size * 0.1
+            let box = rect.insetBy(dx: inset, dy: inset)
+            let bg = NSBezierPath(roundedRect: box, xRadius: box.width * 0.225, yRadius: box.width * 0.225)
+            Theme.ink.setFill()
+            bg.fill()
+
+            // 파형은 아이콘 폭의 62%를 쓴다.
+            let s = box.width * 0.62 / viewBox
+            let o = CGPoint(x: box.midX - viewBox * s / 2, y: box.midY - viewBox * s / 2)
+            NSColor.white.setStroke()
+            wave(scale: s, offset: o).stroke()
+            Theme.coral.setFill()
+            dot(scale: s, offset: o).fill()
+            return true
+        }
+    }
+}
+
+// MARK: - SwiftUI 로고
+
+struct LogoWave: Shape {
+    func path(in rect: CGRect) -> Path {
+        let s = rect.width / Logo.viewBox
+        func pt(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: rect.minX + x * s, y: rect.minY + y * s) }
+        var p = Path()
+        p.move(to: pt(4, 21))
+        p.addCurve(to: pt(13.5, 16), control1: pt(7, 8), control2: pt(10.5, 8))
+        p.addCurve(to: pt(20.5, 16), control1: pt(15.5, 21.5), control2: pt(18, 21.5))
+        return p
+    }
+}
+
+struct LogoMark: View {
+    var size: CGFloat = 24
+    var wave: Color = .ink
+    var dot: Color = .coral
+
+    var body: some View {
+        let s = size / Logo.viewBox
+        ZStack(alignment: .topLeading) {
+            LogoWave()
+                .stroke(wave, style: StrokeStyle(lineWidth: Logo.strokeWidth * s, lineCap: .round, lineJoin: .round))
+            Circle()
+                .fill(dot)
+                .frame(width: Logo.dotRadius * 2 * s, height: Logo.dotRadius * 2 * s)
+                .offset(x: (Logo.dotCenter.x - Logo.dotRadius) * s,
+                        y: (Logo.dotCenter.y - Logo.dotRadius) * s)
+        }
+        .frame(width: size, height: size)
+    }
+}

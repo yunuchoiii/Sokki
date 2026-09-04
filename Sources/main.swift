@@ -1,0 +1,1157 @@
+import AppKit
+import Speech
+import SwiftUI
+import Combine
+
+// MARK: - 앱 진입점
+
+let app = NSApplication.shared
+
+// 화면 확인용: 팝오버 각 상태를 PNG로 렌더링하고 종료
+if let i = CommandLine.arguments.firstIndex(of: "--render-previews"), i + 1 < CommandLine.arguments.count {
+    PreviewRenderer.run(outputDir: CommandLine.arguments[i + 1])
+    exit(0)
+}
+
+// 빌드용: 앱 아이콘 iconset PNG 를 만든다. build.sh 가 iconutil 로 .icns 로 묶는다.
+if let i = CommandLine.arguments.firstIndex(of: "--render-icon"), i + 1 < CommandLine.arguments.count {
+    let dir = URL(fileURLWithPath: CommandLine.arguments[i + 1])
+    try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+    for base in [16, 32, 128, 256, 512] {
+        for scale in [1, 2] {
+            let px = CGFloat(base * scale)
+            let image = Logo.appIcon(size: px)
+            let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(px), pixelsHigh: Int(px),
+                                       bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                                       colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
+            rep.size = NSSize(width: px, height: px)
+            NSGraphicsContext.saveGraphicsState()
+            NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+            image.draw(in: NSRect(x: 0, y: 0, width: px, height: px))
+            NSGraphicsContext.restoreGraphicsState()
+            let name = scale == 1 ? "icon_\(base)x\(base).png" : "icon_\(base)x\(base)@2x.png"
+            try? rep.representation(using: .png, properties: [:])?.write(to: dir.appendingPathComponent(name))
+        }
+    }
+    exit(0)
+}
+
+// 진단용: 녹음 없이 정리 백엔드만 돌려 본다. 키는 환경변수(GEMINI_API_KEY 등)로도 넣을 수 있다.
+if let i = CommandLine.arguments.firstIndex(of: "--polish"), i + 1 < CommandLine.arguments.count {
+    let done = DispatchSemaphore(value: 0)
+    let started = Date()
+    Polisher.run(CommandLine.arguments[i + 1]) { result in
+        let secs = String(format: "%.1f", Date().timeIntervalSince(started))
+        switch result {
+        case .success(let text): print("OK (\(secs)s) [\(Prefs.backend.rawValue)]\n\(text)")
+        case .failure(let error): print("FAIL (\(secs)s)\n\(error.localizedDescription)")
+        }
+        done.signal()
+    }
+    _ = done.wait(timeout: .now() + 120)
+    exit(0)
+}
+
+let delegate = AppDelegate()
+app.delegate = delegate
+app.setActivationPolicy(.accessory)   // Dock에 안 뜨는 메뉴바 전용 앱
+app.run()
+
+// MARK: - 상태
+
+enum AppState {
+    case idle, recording, polishing, error
+
+    var icon: String {
+        switch self {
+        case .idle:      return "🎙"
+        case .recording: return "🔴"
+        case .polishing: return "✨"
+        case .error:     return "⚠️"
+        }
+    }
+}
+
+// MARK: - AppDelegate
+
+final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
+
+    private var statusItem: NSStatusItem!
+    private let recorder = SpeechRecorder()
+    private var state: AppState = .idle
+    private var lastMessage = "준비됨"
+    private var lastResult = ""
+    private var partialText = ""
+
+    // 팝오버(시안 1a/1b/1c)
+    private let model = AppModel()
+    private lazy var popover: NSPopover = {
+        let p = NSPopover()
+        p.behavior = .transient
+        p.animates = true
+        let host = NSHostingController(rootView: PopoverRoot(model: model))
+        host.sizingOptions = [.preferredContentSize]
+        p.contentViewController = host
+        return p
+    }()
+
+    /// 팝오버 배경(꼬리 포함). NSPopover 는 기본 회색 비주얼 이펙트라 흰 화면과 꼬리 색이 달라 보인다.
+    private let popoverBackground: NSView = {
+        let v = NSView()
+        v.wantsLayer = true
+        v.layer?.backgroundColor = Theme.paper.cgColor
+        return v
+    }()
+    /// 팝오버 밖을 클릭하면 닫는다. 앱이 활성화되지 않은 상태에선 .transient 만으로는 안 닫힌다.
+    private var outsideClickMonitor: Any?
+    private var phaseObserver: AnyCancellable?
+
+    let settings = SettingsWindowController()
+
+    // 녹음 타이머 · 침묵 감지
+    private var recordingStartedAt: Date?
+    private var recordingTimer: Timer?
+    private var lastSpeechAt: Date?
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        Log.write("=== Sokki 시작 === 로그: \(Log.url.path)")
+        Prefs.migrateFromSokgiIfNeeded()
+
+        NSApp.applicationIconImage = Logo.appIcon()
+
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        if let button = statusItem.button {
+            button.image = Logo.menuBarIcon()
+            button.imagePosition = .imageLeading
+            button.target = self
+            button.action = #selector(statusItemClicked)
+            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+        }
+        wireModelActions()
+        wireSettingsActions()
+        updateStatusTitle()
+        popover.delegate = self
+
+        phaseObserver = model.$phase.receive(on: DispatchQueue.main).sink { [weak self] phase in
+            self?.updatePopoverBackground(for: phase)
+        }
+        NotificationCenter.default.addObserver(forName: .sokkiPrefsChanged, object: nil, queue: .main) { [weak self] _ in
+            self?.prefsChanged()
+        }
+        // 단축키를 녹음하는 동안엔 전역 핫키를 풀어 둔다. 같은 조합을 누르면 녹음이 켜져 버린다.
+        NotificationCenter.default.addObserver(forName: .sokkiHotKeyCaptureBegan, object: nil, queue: .main) { _ in
+            HotKey.unregister()
+            ModifierHotKey.unregister()
+        }
+        NotificationCenter.default.addObserver(forName: .sokkiHotKeyCaptureEnded, object: nil, queue: .main) { [weak self] _ in
+            self?.registerHotKey()
+            self?.model.refreshPrefs()
+        }
+
+        SpeechRecorder.requestPermissions { [weak self] result in
+            switch result {
+            case .success:
+                self?.model.micReady = true
+            case .failure(let error):
+                self?.model.micReady = false
+                self?.fail(error.localizedDescription)
+            }
+        }
+
+        registerHotKey()
+        Log.write("실행 경로: \(Bundle.main.bundlePath)")
+        Log.write("자동 붙여넣기: \(Prefs.autoPaste), 접근성 권한: \(Paster.isTrusted)")
+
+        // 기본값은 클립보드 복사이므로 권한을 요구하지 않는다.
+        // 자동 붙여넣기를 켠 사용자에게만 안내한다.
+        if Prefs.autoPaste && !Paster.isTrusted {
+            Paster.requestTrust()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                self.showAccessibilityNotice()
+            }
+            startTrustWatcher()
+        }
+    }
+
+    /// 권한이 켜지는 순간을 감지해 메뉴를 갱신한다. AXIsProcessTrusted는 폴링만 가능하다.
+    private func startTrustWatcher() {
+        var elapsed = 0
+        Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] timer in
+            elapsed += 2
+            if Paster.isTrusted {
+                Log.write("접근성 권한이 허용되었습니다.")
+                timer.invalidate()
+                self?.setState(.idle, message: "접근성 권한 확인됨")
+                if Prefs.currentHotKey.isModifierOnly { self?.registerHotKey() }
+                self?.settings.model.refresh()
+            } else if elapsed > 300 {
+                timer.invalidate()
+            }
+        }
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        HotKey.unregister()
+        ModifierHotKey.unregister()
+        recorder.cancel()
+    }
+
+    // MARK: 단축키
+
+    private func registerHotKey() {
+        let combo = Prefs.currentHotKey
+        let action: () -> Void = { [weak self] in
+            Log.write("단축키 눌림")
+            self?.toggle()
+        }
+        HotKey.unregister()
+        ModifierHotKey.unregister()
+
+        if combo.isModifierOnly {
+            let ok = ModifierHotKey.register(combo, action: action)
+            Log.write("수정자 단축키 \(combo.title) 등록: \(ok)")
+            if !ok {
+                fail("단축키 \(combo.title) 는 손쉬운 사용 권한이 있어야 동작합니다.\n\n시스템 설정 > 개인정보 보호 및 보안 > 손쉬운 사용에서 Sokki를 켜 주세요. 권한이 켜지면 자동으로 다시 등록합니다.")
+                startTrustWatcher()
+            }
+            return
+        }
+
+        let ok = HotKey.register(keyCode: combo.keyCode, modifiers: combo.modifiers & 0xFFFF, action: action)
+        Log.write("단축키 \(combo.title) 등록: \(ok)")
+        if !ok {
+            fail("단축키 \(combo.title) 등록 실패 — 다른 앱이 이미 쓰고 있을 수 있어요.")
+        }
+    }
+
+    // MARK: 녹음 토글
+
+    @objc private func toggle() {
+        recorder.isRunning ? stopAndPolish() : startRecording()
+    }
+
+    private func startRecording() {
+        do {
+            partialText = ""
+            model.resetRecording()
+            model.retryRecord = nil
+            model.screen = .main
+            model.rawExpanded = false
+            lastSpeechAt = nil
+            try recorder.start(localeID: Prefs.localeID, onPartial: { [weak self] text in
+                guard let self else { return }
+                if text != self.partialText { self.lastSpeechAt = Date() }
+                self.partialText = text
+                self.model.partialText = text
+            }, onLevel: { [weak self] level in
+                self?.model.pushLevel(level)
+            })
+            recordingStartedAt = Date()
+            startRecordingTimer()
+            model.phase = .recording
+            setState(.recording, message: "듣는 중…")
+            showPopover()
+        } catch {
+            fail(error.localizedDescription)
+        }
+    }
+
+    /// 0.25초마다 경과 시간을 올리고, 켜져 있으면 침묵 3초를 감지해 자동으로 끝낸다.
+    private func startRecordingTimer() {
+        recordingTimer?.invalidate()
+        let timer = Timer(timeInterval: 0.25, repeats: true) { [weak self] _ in
+            guard let self, let started = self.recordingStartedAt else { return }
+            self.model.elapsed = Date().timeIntervalSince(started)
+            self.renderRecordingTitle()
+
+            if Prefs.autoStopOnSilence,
+               self.recorder.isRunning,
+               !self.partialText.isEmpty,
+               let last = self.lastSpeechAt,
+               Date().timeIntervalSince(last) >= Prefs.silenceSeconds {
+                Log.write("침묵 \(Int(Prefs.silenceSeconds))초 — 자동 요약")
+                self.stopAndPolish()
+            }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        recordingTimer = timer
+    }
+
+    private func stopRecordingTimer() {
+        recordingTimer?.invalidate()
+        recordingTimer = nil
+    }
+
+    private func cancelRecording() {
+        stopRecordingTimer()
+        recorder.cancel()
+        recordingStartedAt = nil
+        model.phase = .idle
+        setState(.idle, message: "취소됨")
+        popover.performClose(nil)
+        Log.write("녹음 취소")
+    }
+
+    private func stopAndPolish() {
+        stopRecordingTimer()
+        let duration = recordingStartedAt.map { Date().timeIntervalSince($0) } ?? 0
+        recordingStartedAt = nil
+        model.phase = .polishing
+        setState(.polishing, message: "정리 중…")
+
+        recorder.stop { [weak self] transcript, recError in
+            guard let self else { return }
+            let raw = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+            Log.write("받아쓰기 원문(\(raw.count)자): \(raw)")
+
+            guard !raw.isEmpty else {
+                self.handleEmptyTranscript(recError)
+                return
+            }
+            self.polish(raw: raw, duration: duration, replacing: nil)
+        }
+    }
+
+    /// 원문을 정리해서 전달한다. replacing 이 있으면 그 기록을 새 요약으로 덮어쓴다("다시 요약").
+    private func polish(raw: String, duration: TimeInterval, replacing old: SummaryRecord?) {
+        func record(_ text: String, polished: Bool) -> SummaryRecord {
+            var r = old ?? SummaryRecord(title: "", summary: "", raw: raw, date: Date(),
+                                         duration: duration, localeID: Prefs.localeID, polished: polished)
+            r.summary = text
+            r.title = HistoryStore.makeTitle(from: text)
+            r.polished = polished
+            if old != nil { r.date = Date() }
+            return r
+        }
+
+        guard Prefs.polishEnabled else {
+            deliver(record(raw, polished: false), message: "원문 붙여넣기 완료")
+            return
+        }
+
+        let startedAt = Date()
+        Polisher.run(raw) { result in
+            DispatchQueue.main.async {
+                let secs = String(format: "%.1f", Date().timeIntervalSince(startedAt))
+                switch result {
+                case .success(let text):
+                    Log.write("Claude 정리 완료(\(text.count)자, \(secs)초)")
+                    self.deliver(record(text, polished: true), message: "완료 (\(secs)초)")
+                case .failure(let error):
+                    // 정리에 실패해도 말한 내용은 버리지 않는다.
+                    Log.write("Claude 실패: \(error.localizedDescription)")
+                    let fallback = record(raw, polished: false)
+                    self.deliver(fallback, message: "Claude 정리 실패, 원문 붙여넣음")
+                    self.model.retryRecord = fallback
+                    self.fail("정리에 실패해서 원문을 그대로 복사했어요\n\n\(error.localizedDescription)")
+                }
+            }
+        }
+    }
+
+    private func handleEmptyTranscript(_ recError: Error?) {
+        if let recError {
+            let detail = recError.localizedDescription
+            let lowered = detail.lowercased()
+
+            // macOS 받아쓰기 자체가 꺼져 있는 경우. 서버 인식으로 바꿔도 소용없다.
+            if lowered.contains("dictation") || lowered.contains("siri") {
+                showDictationDisabledNotice(detail)
+                return
+            }
+
+            // 온디바이스 모델이 준비 안 된 경우 — 다음 시도는 서버 인식으로.
+            if recorder.usingOnDevice {
+                Prefs.forceServerRecognition = true
+                fail("""
+                    온디바이스 음성 인식이 실패했습니다. 다음 시도부터 애플 서버 인식으로 전환합니다. \
+                    한 번 더 말해 보세요.
+
+                    원인: \(detail)
+                    """)
+            } else {
+                fail("음성 인식 실패: \(detail)")
+            }
+        } else {
+            fail("""
+                인식된 말이 없습니다. 확인해 볼 것:
+                • 시스템 설정 > 사운드 > 입력에서 마이크 입력 레벨이 움직이는지
+                • 시스템 설정 > 키보드 > 받아쓰기가 켜져 있는지
+                • 인식 언어(현재 \(Prefs.localeID))가 실제 말한 언어와 맞는지
+                """)
+        }
+    }
+
+    private func deliver(_ record: SummaryRecord, message: String) {
+        let text = record.summary
+        lastResult = text
+        partialText = ""
+        model.upsert(record)
+        model.rawExpanded = false
+
+        guard Prefs.autoPaste, Paster.isTrusted else {
+            if Prefs.copyToClipboard {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(text, forType: .string)
+                Log.write("클립보드에 복사 (\(text.count)자)")
+            } else {
+                Log.write("클립보드 복사 꺼짐 — 기록에만 저장")
+            }
+            NSSound(named: "Tink")?.play()
+            model.phase = .done(record, Prefs.copyToClipboard ? .copied : .viewing)
+            setState(.idle, message: Prefs.copyToClipboard ? "\(message) — ⌘V로 붙여넣으세요" : message)
+            showPopover()
+            return
+        }
+
+        // 팝오버 버튼을 눌러 끝냈다면 Sokki가 앞에 있다. 숨겨서 원래 앱으로 초점을 돌려준다.
+        let delay: TimeInterval
+        if NSApp.isActive {
+            popover.performClose(nil)
+            NSApp.hide(nil)
+            delay = 0.25
+        } else {
+            delay = 0
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+            Paster.paste(text, restoreClipboard: Prefs.restoreClipboard)
+            self.model.phase = .done(record, .pasted)
+            self.setState(.idle, message: message)
+            // 붙여넣기와 클립보드 복원이 끝난 뒤에 팝오버를 띄운다.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { self.showPopover() }
+        }
+    }
+
+    // MARK: 팝오버
+
+    @objc private func statusItemClicked() {
+        if NSApp.currentEvent?.type == .rightMouseUp {
+            showSettingsMenu()
+        } else if popover.isShown {
+            popover.performClose(nil)
+        } else {
+            showPopover()
+        }
+    }
+
+    private func showPopover() {
+        guard let button = statusItem.button, !popover.isShown else { return }
+        model.refreshPrefs()
+        // 시스템 모드는 메뉴바가 아니라 앱의 현재 모드를 따르게 명시한다 (메뉴바는 배경화면에 따라 다크일 수 있다)
+        popover.appearance = Prefs.appearance.nsAppearance
+            ?? NSAppearance(named: Prefs.appearance.isDark ? .darkAqua : .aqua)
+        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+    }
+
+    /// 팝오버 프레임 뷰(꼬리 포함)에 단색 배경을 깐다.
+    /// 재질(비주얼 이펙트) 아래에 깔면 반투명 재질이 섞여 꼬리와 박스 색이 미묘하게 달라진다.
+    /// 그래서 콘텐츠 뷰 바로 아래, 재질 위에 둔다.
+    private func installPopoverBackground() {
+        guard let window = popover.contentViewController?.view.window,
+              let contentView = window.contentView,
+              let frameView = contentView.superview else { return }
+        if popoverBackground.superview !== frameView {
+            popoverBackground.removeFromSuperview()
+            popoverBackground.frame = frameView.bounds
+            popoverBackground.autoresizingMask = [.width, .height]
+            frameView.addSubview(popoverBackground, positioned: .below, relativeTo: contentView)
+        }
+        updatePopoverBackground(for: model.phase)
+    }
+
+    private func updatePopoverBackground(for phase: AppModel.Phase) {
+        if case .recording = phase {
+            popoverBackground.layer?.backgroundColor = Theme.ink.cgColor
+        } else {
+            popoverBackground.layer?.backgroundColor = Theme.paperColor(dark: Prefs.appearance.isDark).cgColor
+        }
+    }
+
+    func popoverDidShow(_ notification: Notification) {
+        installPopoverBackground()
+        outsideClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
+            self?.popover.performClose(nil)
+        }
+    }
+
+    func popoverDidClose(_ notification: Notification) {
+        if let m = outsideClickMonitor { NSEvent.removeMonitor(m) }
+        outsideClickMonitor = nil
+    }
+
+    /// 설정 창에서 값이 바뀌었을 때.
+    private func prefsChanged() {
+        if Prefs.currentHotKey.title != model.hotKeyTitle { registerHotKey() }
+        if Prefs.autoPaste && !Paster.isTrusted {
+            Paster.requestTrust()
+            startTrustWatcher()
+        }
+        model.refreshPrefs()
+        settings.model.refresh()
+        settings.applyAppearance()
+        if popover.isShown {
+            popover.appearance = Prefs.appearance.nsAppearance
+                ?? NSAppearance(named: Prefs.appearance.isDark ? .darkAqua : .aqua)
+            updatePopoverBackground(for: model.phase)
+        }
+    }
+
+    private func wireSettingsActions() {
+        settings.model.actions.testPaste = { [weak self] in self?.testPaste() }
+        settings.model.actions.testBackend = { [weak self] in self?.testClaude() }
+        settings.model.actions.listGeminiModels = { [weak self] in self?.listGeminiModels() }
+        settings.model.actions.checkCLI = { [weak self] in self?.checkCLI() }
+        settings.model.actions.resetCLIFlags = { [weak self] in self?.resetCLIFlags() }
+        settings.model.actions.openLog = { [weak self] in self?.openLog() }
+        settings.model.actions.showDiagnostics = { [weak self] in self?.showDiagnostics() }
+        settings.model.actions.openDictationSettings = { [weak self] in self?.openDictationSettings() }
+        settings.model.actions.openAccessibility = { [weak self] in self?.openAccessibility() }
+    }
+
+    /// 상태 아이콘 우클릭 · 팝오버의 "설정…" 에서 기존 설정 메뉴를 띄운다.
+    private func showSettingsMenu() {
+        rebuildMenu()
+        guard let menu = settingsMenu else { return }
+        if popover.isShown {
+            popover.performClose(nil)
+            menu.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
+        } else {
+            statusItem.menu = menu
+            statusItem.button?.performClick(nil)
+            statusItem.menu = nil
+        }
+    }
+
+    private func wireModelActions() {
+        model.actions.startRecording = { [weak self] in self?.startRecording() }
+        model.actions.finishRecording = { [weak self] in
+            guard let self, self.recorder.isRunning else { return }
+            self.stopAndPolish()
+        }
+        model.actions.cancelRecording = { [weak self] in self?.cancelRecording() }
+        model.actions.openSettings = { [weak self] in
+            self?.popover.performClose(nil)
+            self?.settings.show()
+        }
+        model.actions.quit = { NSApp.terminate(nil) }
+        model.actions.openLog = { [weak self] in self?.openLog() }
+        model.actions.dismissError = { [weak self] in
+            self?.model.retryRecord = nil
+            self?.model.phase = .idle
+            self?.setState(.idle, message: "준비됨")
+        }
+        model.actions.copy = { [weak self] record in
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(record.summary, forType: .string)
+            NSSound(named: "Tink")?.play()
+            self?.setState(self?.state ?? .idle, message: "요약을 복사했습니다.")
+        }
+        model.actions.copyRaw = { record in
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(record.raw, forType: .string)
+            NSSound(named: "Tink")?.play()
+        }
+        model.actions.resummarize = { [weak self] record in
+            guard let self else { return }
+            self.model.retryRecord = nil
+            self.model.phase = .polishing
+            self.setState(.polishing, message: "다시 정리 중…")
+            self.polish(raw: record.raw, duration: record.duration, replacing: record)
+        }
+        model.actions.delete = { [weak self] record in
+            guard let self else { return }
+            self.model.remove(record)
+            if case .done(let current, _) = self.model.phase, current.id == record.id {
+                self.model.phase = .idle
+            }
+        }
+    }
+
+    // MARK: 상태 표시
+
+    private func setState(_ newState: AppState, message: String) {
+        DispatchQueue.main.async {
+            self.state = newState
+            self.lastMessage = message
+            self.updateStatusTitle()
+            self.rebuildMenu()
+        }
+    }
+
+    /// 로그에 남기고, 메뉴 상태 줄에 쓰고, (설정에 따라) 알림창까지 띄운다.
+    private func fail(_ message: String) {
+        Log.write("실패: \(message)")
+        setState(.error, message: message.split(separator: "\n").first.map(String.init) ?? message)
+        DispatchQueue.main.async {
+            if self.recorder.isRunning { return }   // 녹음 화면을 덮지 않는다
+            self.stopRecordingTimer()
+            self.model.phase = .error(message)
+            self.showPopover()
+        }
+        guard Prefs.showErrorAlerts else { return }
+        DispatchQueue.main.async {
+            NSApp.activate(ignoringOtherApps: true)
+            let alert = NSAlert()
+            alert.alertStyle = .warning
+            alert.messageText = "Sokki"
+            alert.informativeText = message
+            alert.addButton(withTitle: "확인")
+            alert.addButton(withTitle: "로그 열기")
+            if alert.runModal() == .alertSecondButtonReturn { self.openLog() }
+        }
+    }
+
+    /// 메뉴바: 대기는 파형 아이콘만, 녹음 중엔 코랄 점 + 타이머, 정리 중엔 "…".
+    private func updateStatusTitle() {
+        DispatchQueue.main.async {
+            guard let button = self.statusItem.button else { return }
+            switch self.state {
+            case .idle:
+                button.attributedTitle = NSAttributedString(string: "")
+            case .recording:
+                self.renderRecordingTitle()
+            case .polishing:
+                button.attributedTitle = NSAttributedString(
+                    string: " …", attributes: [.font: NSFont.systemFont(ofSize: 12, weight: .semibold)])
+            case .error:
+                button.attributedTitle = NSAttributedString(
+                    string: " !", attributes: [.font: NSFont.systemFont(ofSize: 12, weight: .bold),
+                                               .foregroundColor: Theme.coral])
+            }
+        }
+    }
+
+    private func renderRecordingTitle() {
+        guard let button = statusItem.button else { return }
+        let title = NSMutableAttributedString(
+            string: " ●", attributes: [.font: NSFont.systemFont(ofSize: 9, weight: .bold),
+                                       .foregroundColor: Theme.coral,
+                                       .baselineOffset: 1])
+        title.append(NSAttributedString(
+            string: " \(Format.timer(model.elapsed))",
+            attributes: [.font: NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .semibold)]))
+        button.attributedTitle = title
+    }
+
+    // MARK: 설정 메뉴 (상태 아이콘 우클릭 · 팝오버 "설정…")
+
+    private var settingsMenu: NSMenu?
+
+    private func rebuildMenu() {
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+
+        let preset = HotKeyPreset.preset(at: Prefs.hotKeyIndex)
+        let toggleTitle = recorder.isRunning ? "받아쓰기 중지" : "받아쓰기 시작"
+        let toggleItem = NSMenuItem(title: "\(toggleTitle)  (\(preset.title))",
+                                    action: #selector(toggle), keyEquivalent: "")
+        toggleItem.target = self
+        menu.addItem(toggleItem)
+
+        let statusLine = NSMenuItem(title: lastMessage, action: nil, keyEquivalent: "")
+        statusLine.isEnabled = false
+        menu.addItem(statusLine)
+
+        let settingsItem = NSMenuItem(title: "설정 창 열기…", action: #selector(openSettingsWindow), keyEquivalent: ",")
+        settingsItem.target = self
+        menu.addItem(settingsItem)
+
+        if !lastResult.isEmpty {
+            let copyItem = NSMenuItem(title: "마지막 결과 다시 복사", action: #selector(copyLast), keyEquivalent: "")
+            copyItem.target = self
+            menu.addItem(copyItem)
+        }
+
+        menu.addItem(.separator())
+
+        addRadioSubmenu(to: menu, title: "인식 언어",
+                        items: Prefs.locales.map(\.title),
+                        selected: Prefs.locales.firstIndex { $0.id == Prefs.localeID } ?? 0,
+                        action: #selector(pickLocale(_:)))
+
+        addRadioSubmenu(to: menu, title: "정리 스타일",
+                        items: PolishStyle.allCases.map(\.title),
+                        selected: PolishStyle.allCases.firstIndex(of: Prefs.style) ?? 0,
+                        action: #selector(pickStyle(_:)))
+
+        addRadioSubmenu(to: menu, title: "단축키",
+                        items: HotKeyPreset.all.map(\.title),
+                        selected: Prefs.hotKeyIndex,
+                        action: #selector(pickHotKey(_:)))
+
+        addRadioSubmenu(to: menu, title: "정리 백엔드",
+                        items: Prefs.Backend.allCases.map(\.title),
+                        selected: Prefs.Backend.allCases.firstIndex(of: Prefs.backend) ?? 0,
+                        action: #selector(pickBackend(_:)))
+
+        switch Prefs.backend {
+        case .gemini:
+            addRadioSubmenu(to: menu, title: "Gemini 모델",
+                            items: Prefs.geminiModels,
+                            selected: Prefs.geminiModels.firstIndex(of: Prefs.geminiModel) ?? 0,
+                            action: #selector(pickGeminiModel(_:)))
+        case .api, .cli:
+            addRadioSubmenu(to: menu, title: "Claude 모델",
+                            items: Prefs.models,
+                            selected: Prefs.models.firstIndex(of: Prefs.model) ?? 0,
+                            action: #selector(pickModel(_:)))
+        }
+
+        menu.addItem(.separator())
+
+        addCheckItem(to: menu, title: "Claude로 정리하기",
+                     on: Prefs.polishEnabled, action: #selector(togglePolish))
+        addCheckItem(to: menu, title: "커서 위치에 자동 붙여넣기 (접근성 권한 필요)",
+                     on: Prefs.autoPaste, action: #selector(toggleAutoPaste))
+        if Prefs.autoPaste {
+            addCheckItem(to: menu, title: "붙여넣기 후 클립보드 복원",
+                         on: Prefs.restoreClipboard, action: #selector(toggleRestore))
+        }
+        addCheckItem(to: menu, title: "말을 멈추고 3초 뒤 자동 요약",
+                     on: Prefs.autoStopOnSilence, action: #selector(toggleAutoStop))
+        addCheckItem(to: menu, title: "실패 시 시스템 알림창도 띄우기",
+                     on: Prefs.showErrorAlerts, action: #selector(toggleAlerts))
+        addCheckItem(to: menu, title: "애플 서버 인식 강제 (온디바이스 끄기)",
+                     on: Prefs.forceServerRecognition, action: #selector(toggleServerRecognition))
+
+        switch Prefs.backend {
+        case .gemini:
+            let g = NSMenuItem(title: "Gemini API 키 설정…", action: #selector(setGeminiKey), keyEquivalent: "")
+            g.target = self
+            menu.addItem(g)
+            if KeychainStore.read(.gemini)?.isEmpty != false {
+                let hint = NSMenuItem(title: "   ↳ aistudio.google.com/apikey 에서 무료 발급", action: nil, keyEquivalent: "")
+                hint.isEnabled = false
+                menu.addItem(hint)
+            }
+        case .api, .cli:
+            let keyItem = NSMenuItem(title: "Claude API 키 설정…", action: #selector(setAPIKey), keyEquivalent: "")
+            keyItem.target = self
+            menu.addItem(keyItem)
+        }
+
+        menu.addItem(.separator())
+
+        // 진단
+        let diagMenu = NSMenu()
+        for (title, sel) in [("붙여넣기 테스트", #selector(testPaste)),
+                             ("정리 백엔드 연결 테스트", #selector(testClaude)),
+                             ("Gemini 모델 목록", #selector(listGeminiModels)),
+                             ("Claude Code CLI 확인", #selector(checkCLI)),
+                             ("CLI 경로 직접 지정…", #selector(setCLIPath)),
+                             ("받아쓰기 설정 열기", #selector(openDictationSettings)),
+                             ("CLI 플래그 캐시 초기화", #selector(resetCLIFlags)),
+                             ("로그 열기", #selector(openLog)),
+                             ("현재 상태 진단", #selector(showDiagnostics))] {
+            let item = NSMenuItem(title: title, action: sel, keyEquivalent: "")
+            item.target = self
+            diagMenu.addItem(item)
+        }
+        let diagRoot = NSMenuItem(title: "진단", action: nil, keyEquivalent: "")
+        diagRoot.submenu = diagMenu
+        menu.addItem(diagRoot)
+
+        if Prefs.autoPaste && !Paster.isTrusted {
+            let axItem = NSMenuItem(title: "⚠️ 접근성 권한 허용하기…", action: #selector(openAccessibility), keyEquivalent: "")
+            axItem.target = self
+            menu.addItem(axItem)
+        }
+
+        menu.addItem(.separator())
+        let quit = NSMenuItem(title: "종료", action: #selector(quitApp), keyEquivalent: "q")
+        quit.target = self
+        menu.addItem(quit)
+
+        settingsMenu = menu
+        model.refreshPrefs()
+    }
+
+    private func addRadioSubmenu(to menu: NSMenu, title: String,
+                                 items: [String], selected: Int, action: Selector) {
+        let sub = NSMenu()
+        for (i, label) in items.enumerated() {
+            let item = NSMenuItem(title: label, action: action, keyEquivalent: "")
+            item.target = self
+            item.tag = i
+            item.state = (i == selected) ? .on : .off
+            sub.addItem(item)
+        }
+        let root = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+        root.submenu = sub
+        menu.addItem(root)
+    }
+
+    private func addCheckItem(to menu: NSMenu, title: String, on: Bool, action: Selector) {
+        let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
+        item.target = self
+        item.state = on ? .on : .off
+        menu.addItem(item)
+    }
+
+    // MARK: 설정 액션
+
+    @objc private func pickLocale(_ sender: NSMenuItem) {
+        Prefs.localeID = Prefs.locales[sender.tag].id
+        setState(state, message: "인식 언어: \(Prefs.locales[sender.tag].title)")
+    }
+
+    @objc private func pickStyle(_ sender: NSMenuItem) {
+        Prefs.style = PolishStyle.allCases[sender.tag]
+        setState(state, message: "정리 스타일: \(Prefs.style.title)")
+    }
+
+    @objc private func pickHotKey(_ sender: NSMenuItem) {
+        Prefs.hotKeyIndex = sender.tag
+        registerHotKey()
+        setState(state, message: "단축키: \(HotKeyPreset.preset(at: sender.tag).title)")
+    }
+
+    @objc private func pickBackend(_ sender: NSMenuItem) {
+        Prefs.backend = Prefs.Backend.allCases[sender.tag]
+        setState(state, message: "정리 백엔드: \(Prefs.backend.title)")
+    }
+
+    @objc private func pickModel(_ sender: NSMenuItem) {
+        Prefs.model = Prefs.models[sender.tag]
+        setState(state, message: "모델: \(Prefs.model)")
+    }
+
+    @objc private func pickGeminiModel(_ sender: NSMenuItem) {
+        Prefs.geminiModel = Prefs.geminiModels[sender.tag]
+        setState(state, message: "Gemini 모델: \(Prefs.geminiModel)")
+    }
+
+    @objc private func setGeminiKey() {
+        NSApp.activate(ignoringOtherApps: true)
+
+        let alert = NSAlert()
+        alert.messageText = "Gemini API 키"
+        alert.informativeText = """
+            aistudio.google.com/apikey 에서 무료로 발급받을 수 있습니다. 카드 등록 필요 없습니다.
+            Flash-Lite 기준 분당 15회 / 하루 1,000회까지 무료입니다.
+
+            키는 \\(KeychainStore.storageDescription) 에 저장됩니다.
+            """
+        alert.addButton(withTitle: "저장")
+        alert.addButton(withTitle: "발급 페이지 열기")
+        alert.addButton(withTitle: "취소")
+
+        let field = NSSecureTextField(frame: NSRect(x: 0, y: 0, width: 340, height: 24))
+        field.placeholderString = "AIza..."
+        field.stringValue = KeychainStore.read(.gemini) ?? ""
+        alert.accessoryView = field
+        alert.window.initialFirstResponder = field
+
+        switch alert.runModal() {
+        case .alertFirstButtonReturn:
+            let ok = KeychainStore.write(field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines),
+                                         to: .gemini)
+            setState(.idle, message: ok ? "Gemini 키를 저장했습니다." : "키체인 저장에 실패했습니다.")
+        case .alertSecondButtonReturn:
+            if let url = URL(string: "https://aistudio.google.com/apikey") {
+                NSWorkspace.shared.open(url)
+            }
+        default:
+            break
+        }
+    }
+
+    @objc private func listGeminiModels() {
+        setState(state, message: "Gemini 모델 목록 조회 중…")
+        GeminiClient.shared.listModels { result in
+            DispatchQueue.main.async {
+                NSApp.activate(ignoringOtherApps: true)
+                let alert = NSAlert()
+                switch result {
+                case .success(let names):
+                    Log.write("Gemini 모델 \(names.count)개")
+                    alert.messageText = "사용 가능한 Gemini 모델 (\(names.count)개)"
+                    alert.informativeText = names.joined(separator: "\n")
+                    alert.addButton(withTitle: "복사")
+                    alert.addButton(withTitle: "닫기")
+                    if alert.runModal() == .alertFirstButtonReturn {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(names.joined(separator: "\n"), forType: .string)
+                    }
+                case .failure(let error):
+                    self.fail("Gemini 모델 목록 조회 실패\n\n\(error.localizedDescription)")
+                }
+                self.setState(.idle, message: "준비됨")
+            }
+        }
+    }
+
+    @objc private func togglePolish() {
+        Prefs.polishEnabled.toggle()
+        setState(state, message: Prefs.polishEnabled ? "Claude 정리 켬" : "Claude 정리 끔 (원문 그대로)")
+    }
+
+    @objc private func toggleAutoPaste() {
+        Prefs.autoPaste.toggle()
+        Log.write("자동 붙여넣기: \(Prefs.autoPaste)")
+
+        guard Prefs.autoPaste else {
+            setState(.idle, message: "클립보드 복사만 합니다 — ⌘V로 붙여넣으세요")
+            return
+        }
+        if Paster.isTrusted {
+            setState(.idle, message: "커서 위치에 자동 붙여넣습니다")
+        } else {
+            Paster.requestTrust()
+            startTrustWatcher()
+            setState(.idle, message: "접근성 권한을 허용해 주세요")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                self.showAccessibilityNotice()
+            }
+        }
+    }
+
+    @objc private func toggleRestore() {
+        Prefs.restoreClipboard.toggle()
+        rebuildMenu()
+    }
+
+    @objc private func toggleAlerts() {
+        Prefs.showErrorAlerts.toggle()
+        rebuildMenu()
+    }
+
+    @objc private func toggleAutoStop() {
+        Prefs.autoStopOnSilence.toggle()
+        setState(state, message: Prefs.autoStopOnSilence ? "침묵 3초 뒤 자동 요약" : "단축키로만 요약")
+    }
+
+    @objc private func toggleServerRecognition() {
+        Prefs.forceServerRecognition.toggle()
+        setState(state, message: Prefs.forceServerRecognition ? "애플 서버 인식 사용" : "온디바이스 인식 우선")
+    }
+
+    @objc private func copyLast() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(lastResult, forType: .string)
+        setState(state, message: "클립보드에 복사했습니다.")
+    }
+
+    @objc private func setAPIKey() {
+        NSApp.activate(ignoringOtherApps: true)
+
+        let alert = NSAlert()
+        alert.messageText = "Claude API 키"
+        alert.informativeText = "console.anthropic.com 에서 발급한 키를 붙여 넣으세요. 키는 \\(KeychainStore.storageDescription) 에 저장됩니다."
+        alert.addButton(withTitle: "저장")
+        alert.addButton(withTitle: "취소")
+
+        let field = NSSecureTextField(frame: NSRect(x: 0, y: 0, width: 320, height: 24))
+        field.placeholderString = "sk-ant-..."
+        field.stringValue = KeychainStore.readAPIKey() ?? ""
+        alert.accessoryView = field
+        alert.window.initialFirstResponder = field
+
+        if alert.runModal() == .alertFirstButtonReturn {
+            let ok = KeychainStore.writeAPIKey(field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines))
+            setState(.idle, message: ok ? "API 키를 저장했습니다." : "키체인 저장에 실패했습니다.")
+        }
+    }
+
+    // MARK: 진단 액션
+
+    @objc private func testPaste() {
+        guard Prefs.autoPaste else {
+            fail("자동 붙여넣기가 꺼져 있습니다. 지금은 결과가 클립보드에만 복사됩니다.\n메뉴에서 '커서 위치에 자동 붙여넣기'를 켜면 이 테스트를 쓸 수 있습니다.")
+            return
+        }
+        guard Paster.isTrusted else {
+            fail("접근성 권한이 없어 자동 붙여넣기를 할 수 없습니다.\n시스템 설정 > 개인정보 보호 및 보안 > 손쉬운 사용에서 Sokki를 켜세요.")
+            return
+        }
+        setState(.idle, message: "3초 뒤 붙여넣습니다 — 텍스트 필드를 클릭하세요.")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+            Paster.paste("Sokki 붙여넣기 테스트", restoreClipboard: Prefs.restoreClipboard)
+        }
+    }
+
+    @objc private func testClaude() {
+        setState(.polishing, message: "Claude 연결 확인 중…")
+        Polisher.run("어 그 테스트 입니다 음 잘 되나요") { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let text):
+                    self.setState(.idle, message: "Claude 정상: \(text)")
+                    NSApp.activate(ignoringOtherApps: true)
+                    let a = NSAlert()
+                    a.messageText = "연결 정상 — \(Prefs.backend.title)"
+                    a.informativeText = "보낸 원문: 어 그 테스트 입니다 음 잘 되나요\n정리 결과: \(text)"
+                    a.runModal()
+                case .failure(let e):
+                    self.fail("정리 백엔드 연결 실패 (\(Prefs.backend.title))\n\n\(e.localizedDescription)")
+                }
+            }
+        }
+    }
+
+    @objc private func checkCLI() {
+        setState(state, message: "CLI 확인 중…")
+        CLIClient.shared.status { info in
+            DispatchQueue.main.async {
+                Log.write("CLI 상태\n\(info)")
+                NSApp.activate(ignoringOtherApps: true)
+                let alert = NSAlert()
+                alert.messageText = "Claude Code CLI"
+                alert.informativeText = info
+                alert.addButton(withTitle: "복사")
+                alert.addButton(withTitle: "닫기")
+                if alert.runModal() == .alertFirstButtonReturn {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(info, forType: .string)
+                }
+                self.setState(.idle, message: "준비됨")
+            }
+        }
+    }
+
+    @objc private func setCLIPath() {
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.messageText = "claude 실행 파일 경로"
+        alert.informativeText = "터미널에서 `which claude`로 확인한 경로를 넣으세요. 비워 두면 자동으로 찾습니다."
+        alert.addButton(withTitle: "저장")
+        alert.addButton(withTitle: "취소")
+
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 380, height: 24))
+        field.placeholderString = CLIClient.resolveExecutable() ?? "/Users/이름/.local/bin/claude"
+        field.stringValue = Prefs.cliPath ?? ""
+        alert.accessoryView = field
+        alert.window.initialFirstResponder = field
+
+        if alert.runModal() == .alertFirstButtonReturn {
+            let path = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            Prefs.cliPath = path.isEmpty ? nil : path
+            setState(.idle, message: "CLI 경로: \(CLIClient.resolveExecutable() ?? "못 찾음")")
+        }
+    }
+
+    @objc private func resetCLIFlags() {
+        Prefs.unsupportedCLIFlags = []
+        setState(.idle, message: "CLI 플래그 캐시를 지웠습니다. 다음 호출에서 다시 탐색합니다.")
+    }
+
+    @objc private func openLog() {
+        NSWorkspace.shared.open(Log.url)
+    }
+
+    @objc private func showDiagnostics() {
+        let rec = SFSpeechRecognizer(locale: Locale(identifier: Prefs.localeID))
+        let info = """
+            인식 언어: \(Prefs.localeID)
+            recognizer 사용 가능: \(rec?.isAvailable.description ?? "생성 실패")
+            온디바이스 지원: \(rec?.supportsOnDeviceRecognition.description ?? "-")
+            서버 인식 강제: \(Prefs.forceServerRecognition)
+            음성 인식 권한: \(SFSpeechRecognizer.authorizationStatus().rawValue) (3 = 허용)
+            마이크 권한: \(AVCaptureDevice.authorizationStatus(for: .audio).rawValue) (3 = 허용)
+            접근성 권한: \(Paster.isTrusted)
+            정리 백엔드: \(Prefs.backend.title)
+            Gemini 키 저장됨: \(KeychainStore.read(.gemini)?.isEmpty == false)
+            Gemini 모델: \(Prefs.geminiModel)
+            Anthropic 키 저장됨: \(KeychainStore.read(.anthropic)?.isEmpty == false)
+            claude CLI 경로: \(CLIClient.resolveExecutable() ?? "못 찾음")
+            Claude 모델: \(Prefs.model)
+            로그: \(Log.url.path)
+            """
+        Log.write("진단\n\(info)")
+
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.messageText = "Sokki 진단"
+        alert.informativeText = info
+        alert.addButton(withTitle: "복사")
+        alert.addButton(withTitle: "닫기")
+        if alert.runModal() == .alertFirstButtonReturn {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(info, forType: .string)
+        }
+    }
+
+    /// macOS 받아쓰기가 꺼져 있으면 어떤 인식 방식도 동작하지 않는다.
+    private func showDictationDisabledNotice(_ detail: String) {
+        Log.write("받아쓰기 비활성 상태: \(detail)")
+        setState(.error, message: "macOS 받아쓰기가 꺼져 있습니다.")
+
+        DispatchQueue.main.async {
+            NSApp.activate(ignoringOtherApps: true)
+            let alert = NSAlert()
+            alert.alertStyle = .warning
+            alert.messageText = "macOS 받아쓰기를 켜 주세요"
+            alert.informativeText = """
+                Sokki는 애플 음성 인식 엔진을 씁니다. 시스템의 받아쓰기 기능이 꺼져 있으면 \
+                온디바이스든 서버든 인식이 되지 않습니다.
+
+                시스템 설정 > 키보드 > 받아쓰기를 켜고,
+                받아쓰기 언어에 한국어가 있는지 확인하세요.
+
+                켠 뒤에는 다시 설정할 것 없이 바로 단축키를 누르면 됩니다.
+
+                (원본 오류: \(detail))
+                """
+            alert.addButton(withTitle: "키보드 설정 열기")
+            alert.addButton(withTitle: "닫기")
+            if alert.runModal() == .alertFirstButtonReturn {
+                self.openDictationSettings()
+            }
+        }
+    }
+
+    @objc private func openDictationSettings() {
+        let urls = [
+            "x-apple.systempreferences:com.apple.Keyboard-Settings.extension",
+            "x-apple.systempreferences:com.apple.preference.keyboard"
+        ]
+        for string in urls {
+            if let url = URL(string: string), NSWorkspace.shared.open(url) { return }
+        }
+    }
+
+    @objc private func openAccessibility() {
+        Paster.requestTrust()
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    private func showAccessibilityNotice() {
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.messageText = "접근성 권한이 필요합니다"
+        alert.informativeText = """
+            커서 위치에 텍스트를 자동으로 붙여 넣으려면 접근성 권한이 필요합니다.
+
+            시스템 설정 > 개인정보 보호 및 보안 > 손쉬운 사용에서 Sokki를 켜 주세요.
+
+            목록에 Sokki가 안 보이면 '+' 버튼을 누르고 ⌘⇧G로 아래 경로를 붙여넣어 직접 추가하세요:
+            \(Bundle.main.bundlePath)
+
+            권한 없이도 결과는 클립보드에 복사되니 ⌘V로 붙여넣을 수 있습니다.
+            """
+        alert.addButton(withTitle: "설정 열기")
+        alert.addButton(withTitle: "앱 경로 복사")
+        alert.addButton(withTitle: "나중에")
+
+        switch alert.runModal() {
+        case .alertFirstButtonReturn:
+            openAccessibility()
+        case .alertSecondButtonReturn:
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(Bundle.main.bundlePath, forType: .string)
+            setState(state, message: "앱 경로를 클립보드에 복사했습니다.")
+        default:
+            break
+        }
+    }
+
+    @objc private func openSettingsWindow() {
+        settings.show()
+    }
+
+    @objc private func quitApp() {
+        NSApp.terminate(nil)
+    }
+}
