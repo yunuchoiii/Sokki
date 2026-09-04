@@ -247,8 +247,8 @@ struct PolishingView: View {
 
     var body: some View {
         VStack(spacing: 10) {
-            LogoMark(size: 32)
-            ProgressView().controlSize(.small)
+            SokkiLoader(size: 56)
+                .padding(.bottom, 2)
             Text("요약하고 있어요").font(.system(size: 14, weight: .semibold)).foregroundColor(.ink)
             Text(model.polishNote.isEmpty ? model.backendTitle : model.polishNote)
                 .font(.system(size: 11)).foregroundColor(.text3)

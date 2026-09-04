@@ -97,6 +97,16 @@ enum PreviewRenderer {
         write(render(PersonalPane(model: settings).padding(20).frame(width: 620).background(Color.paperSoft)),
               to: dir.appendingPathComponent("2-settings-personal-full.png"))
 
+        let strip = HStack(spacing: 24) {
+            ForEach([10.0, 30.0, 44.0, 60.0, 70.0, 85.0], id: \.self) { f in
+                VStack(spacing: 6) {
+                    SokkiLoader(size: 56, fixedFrame: f)
+                    Text("\(Int(f))f").font(.system(size: 10)).foregroundColor(.text3)
+                }
+            }
+        }.padding(20).background(Color.paper)
+        write(render(strip), to: dir.appendingPathComponent("loader-frames.png"))
+
         write(Logo.appIcon(size: 256), to: dir.appendingPathComponent("app-icon.png"))
         write(Logo.mark(size: 72, wave: Theme.ink, dot: Theme.coral), to: dir.appendingPathComponent("logo-mark.png"))
         let menubar = Logo.menuBarIcon()
