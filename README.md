@@ -28,7 +28,9 @@
    (애플 공증을 받지 않은 앱이라 뜨는 안내입니다. 개발자 계정이 생기면 없어집니다.)
 4. 메뉴바에 파형 아이콘이 생기면 끝. 처음엔 설정 창이 열려 주로 쓰는 분야를 고르게 합니다.
 
-DMG 를 직접 만들려면 `./make-dmg.sh`, `v*` 태그를 올리면 GitHub Actions 가 Release 에 자동으로 붙입니다.
+DMG 를 직접 만들려면 `./make-dmg.sh`. 이 맥에 **Developer ID Application** 인증서와 `notarytool` 프로필
+(`xcrun notarytool store-credentials sokki …`)이 있으면 서명·공증·스테이플까지 자동으로 해서, 받는 사람은
+경고 없이 바로 엽니다. `v*` 태그를 올리면 GitHub Actions 도 DMG 를 만들지만 러너엔 인증서가 없어 공증은 안 됩니다.
 
 ## 빌드 (소스에서)
 
