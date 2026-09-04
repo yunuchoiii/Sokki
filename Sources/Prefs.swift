@@ -173,11 +173,11 @@ enum Prefs {
 
         var title: String {
             switch self {
-            case .auto:   return "AUTO (Apple 온디바이스 + Gemini)"
-            case .gemini: return "Gemini API (무료)"
-            case .apple:  return "Apple 온디바이스 (무료, 오프라인)"
-            case .api:    return "Anthropic API (크레딧 필요, 빠름)"
-            case .cli:    return "Claude Code CLI (구독, 느림)"
+            case .auto:   return "AUTO (Apple AI + Gemini)"
+            case .gemini: return "Gemini (구글, 무료)"
+            case .apple:  return "Apple AI (이 맥에서, 오프라인)"
+            case .api:    return "Claude API (유료 크레딧)"
+            case .cli:    return "Claude Code (구독, 느림)"
             }
         }
     }

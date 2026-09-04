@@ -292,16 +292,18 @@ struct RecognitionPane: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             SettingsSection("음성 인식") {
-                SettingsRow(title: "애플 서버 인식 강제", subtitle: "온디바이스 인식을 끄고 서버 인식 사용 (정확도 ↑)", last: true) {
+                SettingsRow(title: "음성 인식을 애플 서버에서 처리",
+                            subtitle: "켜면 더 정확하지만 인터넷이 필요하고 한 번에 약 1분까지. 끄면 인터넷 없이 이 맥에서만 인식합니다.",
+                            last: true) {
                     InkToggle(isOn: $model.forceServer)
                 }
             }
 
-            SettingsSection("정리 (요약)") {
+            SettingsSection("요약") {
                 SettingsRow(title: "AI 로 정리하기", subtitle: "끄면 받아쓰기 원문을 그대로 붙여 넣음") {
                     InkToggle(isOn: $model.polishEnabled)
                 }
-                SettingsRow(title: "정리 백엔드", subtitle: backendHint) {
+                SettingsRow(title: "AI 모델", subtitle: backendHint) {
                     PopupLabel(title: model.backend.shortTitle,
                                options: Prefs.Backend.allCases.map(\.shortTitle),
                                selected: Prefs.Backend.allCases.firstIndex(of: model.backend)) {
@@ -315,7 +317,7 @@ struct RecognitionPane: View {
                         model.style = PolishStyle.allCases[$0]
                     }
                 }
-                SettingsRow(title: "모델", subtitle: modelHint, last: model.backend == .apple) {
+                SettingsRow(title: "세부 모델", subtitle: modelHint, last: model.backend == .apple) {
                     if model.backend == .apple {
                         Text("이 맥의 Apple Intelligence 모델").font(.system(size: 12)).foregroundColor(.text3)
                     } else if model.backend == .gemini || model.backend == .auto {
@@ -331,8 +333,8 @@ struct RecognitionPane: View {
                     }
                 }
                 if model.backend != .apple {
-                    SettingsRow(title: "안 되면 Claude CLI 로 재시도",
-                                subtitle: "다른 백엔드가 전부 막혔을 때. 10~60초 걸려서 기본은 끔 — 끄면 원문을 바로 복사하고 '다시 요약' 버튼을 줍니다",
+                    SettingsRow(title: "AI 모델이 모두 안 될 때 Claude Code 로 재시도",
+                                subtitle: "10~60초 걸려서 기본은 끔. 끄면 원문을 바로 복사하고 '다시 요약' 버튼을 줍니다.",
                                 last: true) {
                         InkToggle(isOn: $model.cliFallback)
                     }
@@ -354,20 +356,20 @@ struct RecognitionPane: View {
     private var backendHint: String {
         switch model.backend {
         case .auto:   return AppleClient.availability().ok
-                             ? "온디바이스 + Gemini 동시 요청, 빠르고 나은 쪽"
-                             : "온디바이스 사용 불가 — Gemini 만 사용"
-        case .gemini: return "Google AI Studio 무료 키 · 1~5초, 혼잡하면 503"
+                             ? "추천. 이 맥의 Apple AI 와 Gemini 를 함께 써서 빠르고 나은 답을 고릅니다"
+                             : "이 맥의 Apple AI 를 쓸 수 없어 Gemini 만 사용합니다"
+        case .gemini: return "구글 AI. 무료 키로 쓸 수 있고 1~5초, 혼잡할 땐 실패하기도"
         case .apple:  return AppleClient.availability().note
-        case .api:    return "Anthropic 크레딧 · 1초 안팎"
-        case .cli:    return "claude.ai 구독 사용량 · 10~60초"
+        case .api:    return "Anthropic 의 Claude. 유료 크레딧 필요, 1초 안팎"
+        case .cli:    return "Claude Code 구독으로 처리. 10~60초로 느림"
         }
     }
 
     private var modelHint: String {
         switch model.backend {
-        case .gemini, .auto: return "Gemini 두 모델을 동시에 쏘고 먼저 온 답을 씁니다"
-        case .apple:  return "네트워크를 쓰지 않습니다"
-        default:      return "정리는 가벼워서 Haiku 로 충분"
+        case .gemini, .auto: return "Gemini 안에서 어떤 모델을 먼저 쓸지. 늦으면 다른 모델도 같이 씁니다"
+        case .apple:  return "인터넷을 쓰지 않습니다"
+        default:      return "정리는 가벼운 일이라 Haiku 로 충분합니다"
         }
     }
 }
@@ -376,10 +378,10 @@ private extension Prefs.Backend {
     var shortTitle: String {
         switch self {
         case .auto:   return "AUTO"
-        case .gemini: return "Gemini API"
-        case .apple:  return "Apple 온디바이스"
+        case .gemini: return "Gemini"
+        case .apple:  return "Apple AI (이 맥)"
         case .api:    return "Claude API"
-        case .cli:    return "Claude CLI"
+        case .cli:    return "Claude Code"
         }
     }
 }
@@ -540,7 +542,7 @@ struct AdvancedPane: View {
         VStack(alignment: .leading, spacing: 18) {
             SettingsSection("진단") {
                 ActionRow("현재 상태 진단", "권한 4종, 인식 언어, 키 유무를 한 화면에", action: model.actions.showDiagnostics)
-                ActionRow("정리 백엔드 연결 테스트", "짧은 문장을 실제로 정리해 봅니다", action: model.actions.testBackend)
+                ActionRow("AI 모델 연결 테스트", "짧은 문장을 실제로 정리해 봅니다", action: model.actions.testBackend)
                 ActionRow("붙여넣기 테스트", "3초 뒤 커서 위치에 텍스트를 넣습니다 (자동 붙여넣기 켜져 있어야 함)", action: model.actions.testPaste)
                 ActionRow("Gemini 모델 목록", "이 키로 쓸 수 있는 모델을 조회", action: model.actions.listGeminiModels)
                 ActionRow("Claude Code CLI 확인", "경로·버전·로그인 상태", action: model.actions.checkCLI)

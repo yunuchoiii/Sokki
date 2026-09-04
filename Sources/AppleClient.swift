@@ -32,7 +32,7 @@ struct AppleClient {
         if #available(macOS 26.0, *) {
             switch SystemLanguageModel.default.availability {
             case .available:
-                return (true, "사용 가능 — 네트워크 없이 이 맥에서 처리")
+                return (true, "이 맥 안에서 처리. 인터넷 없이 되고 1초 안팎")
             case .unavailable(let reason):
                 switch reason {
                 case .appleIntelligenceNotEnabled:

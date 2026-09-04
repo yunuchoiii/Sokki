@@ -724,7 +724,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                         selected: Prefs.hotKeyIndex,
                         action: #selector(pickHotKey(_:)))
 
-        addRadioSubmenu(to: menu, title: "정리 백엔드",
+        addRadioSubmenu(to: menu, title: "AI 모델",
                         items: Prefs.Backend.allCases.map(\.title),
                         selected: Prefs.Backend.allCases.firstIndex(of: Prefs.backend) ?? 0,
                         action: #selector(pickBackend(_:)))
@@ -746,7 +746,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
         menu.addItem(.separator())
 
-        addCheckItem(to: menu, title: "Claude로 정리하기",
+        addCheckItem(to: menu, title: "AI로 정리하기",
                      on: Prefs.polishEnabled, action: #selector(togglePolish))
         addCheckItem(to: menu, title: "커서 위치에 자동 붙여넣기 (접근성 권한 필요)",
                      on: Prefs.autoPaste, action: #selector(toggleAutoPaste))
@@ -758,7 +758,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                      on: Prefs.autoStopOnSilence, action: #selector(toggleAutoStop))
         addCheckItem(to: menu, title: "실패 시 시스템 알림창도 띄우기",
                      on: Prefs.showErrorAlerts, action: #selector(toggleAlerts))
-        addCheckItem(to: menu, title: "애플 서버 인식 강제 (온디바이스 끄기)",
+        addCheckItem(to: menu, title: "음성 인식을 애플 서버에서 처리",
                      on: Prefs.forceServerRecognition, action: #selector(toggleServerRecognition))
 
         switch Prefs.backend {
@@ -786,7 +786,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         // 진단
         let diagMenu = NSMenu()
         for (title, sel) in [("붙여넣기 테스트", #selector(testPaste)),
-                             ("정리 백엔드 연결 테스트", #selector(testClaude)),
+                             ("AI 모델 연결 테스트", #selector(testClaude)),
                              ("Gemini 모델 목록", #selector(listGeminiModels)),
                              ("Claude Code CLI 확인", #selector(checkCLI)),
                              ("CLI 경로 직접 지정…", #selector(setCLIPath)),
@@ -859,7 +859,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     @objc private func pickBackend(_ sender: NSMenuItem) {
         Prefs.backend = Prefs.Backend.allCases[sender.tag]
-        setState(state, message: "정리 백엔드: \(Prefs.backend.title)")
+        setState(state, message: "AI 모델: \(Prefs.backend.title)")
     }
 
     @objc private func pickModel(_ sender: NSMenuItem) {
@@ -1034,7 +1034,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                     a.informativeText = "보낸 원문: 어 그 테스트 입니다 음 잘 되나요\n정리 결과: \(text)"
                     a.runModal()
                 case .failure(let e):
-                    self.fail("정리 백엔드 연결 실패 (\(Prefs.backend.title))\n\n\(e.localizedDescription)")
+                    self.fail("AI 모델 연결 실패 (\(Prefs.backend.title))\n\n\(e.localizedDescription)")
                 }
             }
         }
@@ -1096,11 +1096,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             인식 언어: \(Prefs.localeID)
             recognizer 사용 가능: \(rec?.isAvailable.description ?? "생성 실패")
             온디바이스 지원: \(rec?.supportsOnDeviceRecognition.description ?? "-")
-            서버 인식 강제: \(Prefs.forceServerRecognition)
+            애플 서버 인식: \(Prefs.forceServerRecognition)
             음성 인식 권한: \(SFSpeechRecognizer.authorizationStatus().rawValue) (3 = 허용)
             마이크 권한: \(AVCaptureDevice.authorizationStatus(for: .audio).rawValue) (3 = 허용)
             접근성 권한: \(Paster.isTrusted)
-            정리 백엔드: \(Prefs.backend.title)
+            AI 모델: \(Prefs.backend.title)
             Gemini 키 저장됨: \(KeychainStore.read(.gemini)?.isEmpty == false)
             Gemini 모델: \(Prefs.geminiModel)
             Anthropic 키 저장됨: \(KeychainStore.read(.anthropic)?.isEmpty == false)
