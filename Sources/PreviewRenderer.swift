@@ -6,7 +6,7 @@ import SwiftUI
 enum PreviewRenderer {
 
     static func run(outputDir: String) {
-        KeychainStore.stub = [.gemini: "AIzaSyD-preview-0000000000000000000a1b2", .anthropic: ""]
+        KeychainStore.stub = [.gemini: "preview-gemini-key-not-real-0000", .anthropic: ""]   // 구글 키 형식(AIza…)을 피한다 — GitHub 시크릿 스캐너가 가짜 값을 잡았다
         let dir = URL(fileURLWithPath: outputDir)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
 
