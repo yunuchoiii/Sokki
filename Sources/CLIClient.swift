@@ -21,7 +21,7 @@ enum CLIError: LocalizedError {
         case .emptyOutput:
             return "claude CLI가 빈 응답을 반환했습니다."
         case .timedOut:
-            return "claude CLI 응답이 60초를 넘겨 중단했습니다."
+            return "claude CLI 응답이 30초를 넘겨 중단했습니다."
         }
     }
 }
@@ -283,7 +283,7 @@ struct CLIClient {
                 proc.terminate()
             }
         }
-        DispatchQueue.global().asyncAfter(deadline: .now() + 60, execute: watchdog)
+        DispatchQueue.global().asyncAfter(deadline: .now() + 30, execute: watchdog)
 
         let outData = outPipe.fileHandleForReading.readDataToEndOfFile()
         let errData = errPipe.fileHandleForReading.readDataToEndOfFile()

@@ -108,6 +108,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     let settings = SettingsWindowController()
 
+    /// 요약 요청 세대. 취소하면 올려서 늦게 오는 결과를 버린다.
+    private var polishGeneration = 0
+    private var pendingRaw = ""
+    private var pendingDuration: TimeInterval = 0
+    private var pendingReplacing: SummaryRecord?
+
     // 녹음 타이머 · 침묵 감지
     private var recordingStartedAt: Date?
     private var recordingTimer: Timer?
@@ -129,6 +135,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
         wireModelActions()
         wireSettingsActions()
+        Polisher.onStatus = { [weak self] text in self?.model.polishNote = text }
         updateStatusTitle()
         popover.delegate = self
 
@@ -160,6 +167,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
         registerHotKey()
         Log.write("실행 경로: \(Bundle.main.bundlePath)")
+
+        // 처음 실행: 어디에 쓰는지 골라 달라고 설정 창을 연다 (권한 창들 뒤에 뜨도록 살짝 늦춘다)
+        if !Prefs.onboarded {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                self.settings.model.tab = .personal
+                self.settings.show()
+            }
+        }
         Log.write("자동 붙여넣기: \(Prefs.autoPaste), 접근성 권한: \(Paster.isTrusted)")
 
         // 기본값은 클립보드 복사이므로 권한을 요구하지 않는다.
@@ -314,6 +329,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     /// 원문을 정리해서 전달한다. replacing 이 있으면 그 기록을 새 요약으로 덮어쓴다("다시 요약").
     private func polish(raw: String, duration: TimeInterval, replacing old: SummaryRecord?) {
+        polishGeneration += 1
+        let generation = polishGeneration
+        pendingRaw = raw
+        pendingDuration = duration
+        pendingReplacing = old
+        model.pendingRaw = raw
+        model.polishNote = ""
+
         func record(_ text: String, polished: Bool) -> SummaryRecord {
             var r = old ?? SummaryRecord(title: "", summary: "", raw: raw, date: Date(),
                                          duration: duration, localeID: Prefs.localeID, polished: polished)
@@ -332,6 +355,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         let startedAt = Date()
         Polisher.run(raw) { result in
             DispatchQueue.main.async {
+                guard generation == self.polishGeneration else {
+                    Log.write("취소된 요약 결과 무시")
+                    return
+                }
                 let secs = String(format: "%.1f", Date().timeIntervalSince(startedAt))
                 switch result {
                 case .success(let text):
@@ -535,6 +562,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
         model.actions.quit = { NSApp.terminate(nil) }
         model.actions.openLog = { [weak self] in self?.openLog() }
+        model.actions.cancelPolish = { [weak self] in
+            guard let self, case .polishing = self.model.phase else { return }
+            self.polishGeneration += 1
+            Log.write("요약 취소 — 원문 그대로 전달")
+            var r = self.pendingReplacing ?? SummaryRecord(title: "", summary: "", raw: self.pendingRaw, date: Date(),
+                                                            duration: self.pendingDuration, localeID: Prefs.localeID, polished: false)
+            r.summary = self.pendingRaw
+            r.title = HistoryStore.makeTitle(from: self.pendingRaw)
+            r.polished = false
+            self.deliver(r, message: "요약 취소 — 원문 사용")
+        }
+        model.actions.copyPendingRaw = { [weak self] in
+            guard let self else { return }
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(self.pendingRaw, forType: .string)
+            NSSound(named: "Tink")?.play()
+            self.model.polishNote = "원문을 클립보드에 복사했어요 — 요약은 계속 진행 중"
+        }
         model.actions.dismissError = { [weak self] in
             self?.model.retryRecord = nil
             self?.model.phase = .idle
@@ -685,11 +730,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                         action: #selector(pickBackend(_:)))
 
         switch Prefs.backend {
-        case .gemini:
+        case .gemini, .auto:
             addRadioSubmenu(to: menu, title: "Gemini 모델",
                             items: Prefs.geminiModels,
                             selected: Prefs.geminiModels.firstIndex(of: Prefs.geminiModel) ?? 0,
                             action: #selector(pickGeminiModel(_:)))
+        case .apple:
+            break
         case .api, .cli:
             addRadioSubmenu(to: menu, title: "Claude 모델",
                             items: Prefs.models,
@@ -715,7 +762,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                      on: Prefs.forceServerRecognition, action: #selector(toggleServerRecognition))
 
         switch Prefs.backend {
-        case .gemini:
+        case .gemini, .auto:
             let g = NSMenuItem(title: "Gemini API 키 설정…", action: #selector(setGeminiKey), keyEquivalent: "")
             g.target = self
             menu.addItem(g)
@@ -724,6 +771,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 hint.isEnabled = false
                 menu.addItem(hint)
             }
+        case .apple:
+            let note = NSMenuItem(title: "   ↳ \(AppleClient.availability().note)", action: nil, keyEquivalent: "")
+            note.isEnabled = false
+            menu.addItem(note)
         case .api, .cli:
             let keyItem = NSMenuItem(title: "Claude API 키 설정…", action: #selector(setAPIKey), keyEquivalent: "")
             keyItem.target = self

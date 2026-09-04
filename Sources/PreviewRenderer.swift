@@ -56,6 +56,8 @@ enum PreviewRenderer {
         snap("1c-viewing")
 
         model.phase = .polishing
+        model.pendingRaw = samples[0].raw
+        model.polishNote = "gemini-3.1-flash-lite 응답이 늦어 gemini-3.6-flash 에도 요청 중…"
         snap("polishing")
 
         model.retryRecord = samples[0]
@@ -74,6 +76,8 @@ enum PreviewRenderer {
         snap("1a-idle-empty")
 
         let settings = SettingsModel()
+        settings.usageContexts = [.devFrontend, .devMobile]
+        settings.showOnboarding = true
         for tab in SettingsModel.Tab.allCases {
             settings.tab = tab
             write(render(SettingsView(model: settings)), to: dir.appendingPathComponent("2-settings-\(tab.rawValue).png"))
@@ -88,6 +92,10 @@ enum PreviewRenderer {
         write(render(PopoverRoot(model: model), dark: true), to: dir.appendingPathComponent("dark-1c-done.png"))
         settings.tab = .general
         write(render(SettingsView(model: settings), dark: true), to: dir.appendingPathComponent("dark-2-settings-general.png"))
+
+        settings.showOnboarding = false
+        write(render(PersonalPane(model: settings).padding(20).frame(width: 620).background(Color.paperSoft)),
+              to: dir.appendingPathComponent("2-settings-personal-full.png"))
 
         write(Logo.appIcon(size: 256), to: dir.appendingPathComponent("app-icon.png"))
         write(Logo.mark(size: 72, wave: Theme.ink, dot: Theme.coral), to: dir.appendingPathComponent("logo-mark.png"))

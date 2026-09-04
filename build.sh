@@ -73,6 +73,7 @@ swiftc \
   -framework ApplicationServices \
   -framework Security \
   -framework ServiceManagement \
+  -Xlinker -weak_framework -Xlinker FoundationModels \
   -o "$APP/Contents/MacOS/Sokki" \
   "$DIR/Sources/"*.swift
 
