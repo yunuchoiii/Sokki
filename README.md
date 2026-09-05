@@ -30,7 +30,8 @@
 
 DMG 를 직접 만들려면 `./make-dmg.sh`. 이 맥에 **Developer ID Application** 인증서와 `notarytool` 프로필
 (`xcrun notarytool store-credentials sokki …`)이 있으면 서명·공증·스테이플까지 자동으로 해서, 받는 사람은
-경고 없이 바로 엽니다. `v*` 태그를 올리면 GitHub Actions 도 DMG 를 만들지만 러너엔 인증서가 없어 공증은 안 됩니다.
+경고 없이 바로 엽니다. 배포는 `gh release create v0.1.0 build/Sokki-0.1.0.dmg` 처럼 로컬에서 만든 공증 DMG 를 올립니다.
+(GitHub Actions 워크플로는 인증서가 없어 공증이 안 되므로 수동 실행 전용 백업입니다.)
 
 ## 빌드 (소스에서)
 
