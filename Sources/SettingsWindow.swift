@@ -54,6 +54,7 @@ final class SettingsModel: ObservableObject {
     @Published var autoPaste = Prefs.autoPaste                { didSet { Prefs.autoPaste = autoPaste; changed() } }
     @Published var restoreClipboard = Prefs.restoreClipboard  { didSet { Prefs.restoreClipboard = restoreClipboard; changed() } }
     @Published var showErrorAlerts = Prefs.showErrorAlerts    { didSet { Prefs.showErrorAlerts = showErrorAlerts; changed() } }
+    @Published var showInDock = Prefs.showInDock              { didSet { Prefs.showInDock = showInDock; changed() } }
     @Published var forceServer = Prefs.forceServerRecognition { didSet { Prefs.forceServerRecognition = forceServer; changed() } }
     @Published var polishEnabled = Prefs.polishEnabled        { didSet { Prefs.polishEnabled = polishEnabled; changed() } }
     @Published var backend = Prefs.backend                    { didSet { Prefs.backend = backend; changed() } }
@@ -258,9 +259,13 @@ struct GeneralPane: View {
             SettingsSection(nil) {
                 SettingsRow(title: "로그인 시 Sokki 자동 실행",
                             subtitle: model.launchAtLoginError.isEmpty ? nil : nil,
-                            warning: model.launchAtLoginError.isEmpty ? nil : model.launchAtLoginError,
-                            last: true) {
+                            warning: model.launchAtLoginError.isEmpty ? nil : model.launchAtLoginError) {
                     InkToggle(isOn: Binding(get: { model.launchAtLogin }, set: { model.setLaunchAtLogin($0) }))
+                }
+                SettingsRow(title: "Dock 에 Sokki 표시",
+                            subtitle: "Dock 아이콘을 누르면 메뉴바 아이콘처럼 창이 열립니다. 끄면 메뉴바에만 남습니다.",
+                            last: true) {
+                    InkToggle(isOn: $model.showInDock)
                 }
             }
         }

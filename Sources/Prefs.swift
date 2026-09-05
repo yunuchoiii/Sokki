@@ -300,6 +300,12 @@ enum Prefs {
         set { d.set(newValue, forKey: "restoreClipboard") }
     }
 
+    /// Dock 에 실행 중인 앱으로 보일지. 끄면 메뉴바 아이콘만 남는다. Dock 아이콘을 누르면 팝오버가 뜬다.
+    static var showInDock: Bool {
+        get { d.object(forKey: "showInDock") as? Bool ?? true }
+        set { d.set(newValue, forKey: "showInDock") }
+    }
+
     /// 실패했을 때 시스템 알림창까지 띄운다. 팝오버가 오류를 보여주므로 기본은 끔.
     static var showErrorAlerts: Bool {
         get { d.object(forKey: "showErrorAlerts") as? Bool ?? false }
