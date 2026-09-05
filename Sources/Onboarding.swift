@@ -23,7 +23,10 @@ final class OnboardingModel: ObservableObject {
     // 1 마이크 · 2 음성 인식
     @Published var mic: Permission = .idle
     @Published var speech: Permission = .idle
+    /// 시스템 설정 > 키보드 > 받아쓰기. nil 이면 값을 못 읽은 것(체크박스로 물러난다).
+    @Published var dictationEnabled: Bool? = false
     @Published var dictationChecked = false
+    private var dictationTimer: Timer?
 
     // 3 AI 모델
     let appleAvailable: Bool
@@ -88,7 +91,7 @@ final class OnboardingModel: ObservableObject {
         switch step {
         case .welcome, .fields, .done: return true
         case .mic:     return mic == .granted
-        case .speech:  return speech == .granted && dictationChecked
+        case .speech:  return speech == .granted && (dictationEnabled ?? dictationChecked)
         case .model:   return appleAvailable || keyVerified
         case .hotkey:  return !recording
         case .paste:   return !accessibilityRequired || accessibilityTrusted
@@ -123,10 +126,14 @@ final class OnboardingModel: ObservableObject {
     func go(to s: Step) {
         stopRecording()
         stopTrustWatcher()
+        stopDictationWatcher()
         step = s
         switch s {
         case .mic:    refreshMic()
-        case .speech: refreshSpeech()
+        case .speech:
+            refreshSpeech()
+            refreshDictation()
+            if dictationEnabled == false { startDictationWatcher() }
         case .paste:
             refreshTrust()
             if accessibilityRequired && !accessibilityTrusted { startTrustWatcher() }
@@ -196,6 +203,33 @@ final class OnboardingModel: ObservableObject {
                 self.speech = status == .authorized ? .granted : .denied
             }
         }
+    }
+
+    /// 받아쓰기 스위치는 앱이 못 켜지만 상태는 읽을 수 있다 (2026-09-05 실측: com.apple.assistant.support 의
+    /// "Dictation Enabled"). 샌드박스가 아니라서 다른 도메인을 읽는다. 키가 없으면 nil.
+    static func readDictationEnabled() -> Bool? {
+        UserDefaults(suiteName: "com.apple.assistant.support")?.object(forKey: "Dictation Enabled") as? Bool
+    }
+
+    func refreshDictation() {
+        guard !previewMode else { return }
+        let was = dictationEnabled
+        dictationEnabled = Self.readDictationEnabled()
+        if was != dictationEnabled { Log.write("설치 안내: 받아쓰기 스위치 \(dictationEnabled.map { $0 ? "켜짐" : "꺼짐" } ?? "알 수 없음")") }
+    }
+
+    private func startDictationWatcher() {
+        guard !previewMode, dictationTimer == nil else { return }
+        dictationTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
+            guard let self else { return }
+            self.refreshDictation()
+            if self.dictationEnabled != false { self.stopDictationWatcher() }
+        }
+    }
+
+    private func stopDictationWatcher() {
+        dictationTimer?.invalidate()
+        dictationTimer = nil
     }
 
     // MARK: 3 AI 모델
@@ -348,6 +382,7 @@ final class OnboardingModel: ObservableObject {
     deinit {
         stopRecording()
         stopTrustWatcher()
+        stopDictationWatcher()
     }
 }
 
@@ -630,9 +665,9 @@ private struct SpeechStep: View {
                 }
             }
 
-            // 맥의 받아쓰기 스위치 — 앱이 켤 수도, 켜졌는지 알 수도 없다
-            if model.dictationChecked {
-                GreenBox("받아쓰기를 켰습니다")
+            // 맥의 받아쓰기 스위치 — 앱이 켤 수는 없지만 상태는 읽는다. 못 읽으면 체크박스로.
+            if model.dictationEnabled == true || (model.dictationEnabled == nil && model.dictationChecked) {
+                GreenBox(model.dictationEnabled == true ? "받아쓰기가 켜져 있습니다" : "받아쓰기를 켰습니다")
             } else {
                 Card(soft: true) {
                     VStack(alignment: .leading, spacing: 10) {
@@ -640,27 +675,35 @@ private struct SpeechStep: View {
                             Image(systemName: "keyboard").font(.system(size: 18)).foregroundColor(.ink).frame(width: 24)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("맥의 받아쓰기 스위치").font(.system(size: 13.5, weight: .bold)).foregroundColor(.ink)
-                                Text(model.speech == .granted
-                                     ? "시스템 설정 > 키보드 > 받아쓰기를 켠 뒤 아래를 체크해 주세요."
-                                     : "시스템 설정 > 키보드 > 받아쓰기가 꺼져 있으면 인식이 되지 않습니다. Sokki 가 대신 켜 드릴 수 없어 직접 확인이 필요합니다.")
+                                Text(model.dictationEnabled == nil
+                                     ? "시스템 설정 > 키보드 > 받아쓰기가 꺼져 있으면 인식이 되지 않습니다. 켜져 있는지 확인하고 아래를 체크해 주세요."
+                                     : "시스템 설정 > 키보드 > 받아쓰기가 꺼져 있어 인식이 되지 않습니다. 켜고 돌아오면 자동으로 확인됩니다.")
                                     .font(.system(size: 12)).foregroundColor(.text2).lineSpacing(2)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
                             Spacer(minLength: 8)
                             WizardButton("받아쓰기 설정 열기", style: .outline, small: true) { SystemSettings.open(.dictation) }
                         }
-                        Button(action: { model.dictationChecked.toggle() }) {
-                            HStack(spacing: 9) {
-                                RoundedRectangle(cornerRadius: 5)
-                                    .stroke(Color.lineStrong, lineWidth: 1.5)
-                                    .background(RoundedRectangle(cornerRadius: 5).fill(Color.paper))
-                                    .frame(width: 17, height: 17)
-                                Text("받아쓰기를 켰습니다").font(.system(size: 13, weight: .semibold)).foregroundColor(.ink)
+                        if model.dictationEnabled == nil {
+                            Button(action: { model.dictationChecked.toggle() }) {
+                                HStack(spacing: 9) {
+                                    RoundedRectangle(cornerRadius: 5)
+                                        .stroke(Color.lineStrong, lineWidth: 1.5)
+                                        .background(RoundedRectangle(cornerRadius: 5).fill(Color.paper))
+                                        .frame(width: 17, height: 17)
+                                    Text("받아쓰기를 켰습니다").font(.system(size: 13, weight: .semibold)).foregroundColor(.ink)
+                                }
+                                .contentShape(Rectangle())
                             }
-                            .contentShape(Rectangle())
+                            .buttonStyle(.plain)
+                            .padding(.leading, 36)
+                        } else {
+                            HStack(spacing: 8) {
+                                Spinner(size: 11)
+                                Text("2초마다 확인 중").font(.system(size: 11.5)).foregroundColor(.text4)
+                            }
+                            .padding(.leading, 36)
                         }
-                        .buttonStyle(.plain)
-                        .padding(.leading, 36)
                     }
                 }
             }

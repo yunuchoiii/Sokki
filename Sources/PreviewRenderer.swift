@@ -111,8 +111,9 @@ enum PreviewRenderer {
         wizard("W1-mic-granted") { $0.step = .mic; $0.mic = .granted }
         wizard("W1-mic-denied") { $0.step = .mic; $0.mic = .denied }
         wizard("W2-speech-idle") { $0.step = .speech }
-        wizard("W2-speech-granted-dictation-unchecked") { $0.step = .speech; $0.speech = .granted }
-        wizard("W2-speech-done") { $0.step = .speech; $0.speech = .granted; $0.dictationChecked = true }
+        wizard("W2-speech-granted-dictation-off") { $0.step = .speech; $0.speech = .granted }
+        wizard("W2-speech-granted-dictation-unknown") { $0.step = .speech; $0.speech = .granted; $0.dictationEnabled = nil }
+        wizard("W2-speech-done") { $0.step = .speech; $0.speech = .granted; $0.dictationEnabled = true }
         wizard("W3-model-A") { $0.step = .model }
         wizard("W3-model-B-empty", apple: false) { $0.step = .model }
         wizard("W3-model-B-verified", apple: false) { $0.step = .model; $0.keyVerified = true }
