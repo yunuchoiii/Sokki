@@ -37,16 +37,23 @@ TXT
 hdiutil create -volname "Sokki" -srcfolder "$STAGE" -ov -format UDZO -quiet "$DMG"
 rm -rf "$STAGE"
 
+# DMG 자체도 서명한다. 안 하면 spctl -t open 검사가 "no usable signature" 로 떨어진다.
+DEV_ID="$(security find-identity -v -p codesigning 2>/dev/null | grep -o '"Developer ID Application: [^"]*"' | head -1 | tr -d '"' || true)"
+if [[ -n "$DEV_ID" ]]; then
+  codesign --force --sign "$DEV_ID" --timestamp "$DMG"
+fi
+
 # 공증: Developer ID 로 서명됐고 notarytool 프로필 'sokki' 가 있으면 자동으로 한다. NOTARIZE=0 으로 끌 수 있다.
 #   프로필 저장(한 번): xcrun notarytool store-credentials sokki --apple-id <애플ID> --team-id <팀ID>
 if [[ "${NOTARIZE:-1}" == "1" ]] \
-   && codesign -dv "$APP" 2>&1 | grep -q "Developer ID Application" \
+   && codesign -dvv "$APP" 2>&1 | grep -q "Developer ID Application" \
    && xcrun notarytool history --keychain-profile sokki >/dev/null 2>&1; then
   echo "▶ 공증 요청 중… (보통 1~5분)"
   xcrun notarytool submit "$DMG" --keychain-profile sokki --wait
   xcrun stapler staple "$DMG"
   echo "▶ 공증 완료 — 다른 맥에서 경고 없이 열립니다"
   spctl -a -t open --context context:primary-signature -v "$DMG" 2>&1 | tail -1 || true
+  spctl -a -t exec -v "$APP" 2>&1 | tail -1 || true
 else
   echo "ℹ️  공증 생략 (Developer ID 서명 + notarytool 프로필 'sokki' 가 있어야 합니다)"
 fi
