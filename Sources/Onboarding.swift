@@ -29,7 +29,9 @@ final class OnboardingModel: ObservableObject {
     private var dictationTimer: Timer?
 
     // 3 AI 모델
-    let appleAvailable: Bool
+    @Published var appleStatus: AppleClient.Status
+    var appleAvailable: Bool { appleStatus == .available }
+    private var appleTimer: Timer?
     @Published var geminiExpanded = false
     @Published var keyDraft = ""
     @Published var keyVerifying = false
@@ -57,9 +59,9 @@ final class OnboardingModel: ObservableObject {
     let previewMode: Bool
     var onFinish: (() -> Void)?
 
-    init(previewMode: Bool = false, appleAvailable: Bool? = nil) {
+    init(previewMode: Bool = false, appleStatus: AppleClient.Status? = nil) {
         self.previewMode = previewMode
-        self.appleAvailable = appleAvailable ?? (previewMode ? true : AppleClient.availability().ok)
+        self.appleStatus = appleStatus ?? (previewMode ? .available : AppleClient.status())
         if !previewMode {
             hotKeyTitle = Prefs.currentHotKey.title
             hotKeyIsModifierOnly = Prefs.currentHotKey.isModifierOnly
@@ -127,9 +129,13 @@ final class OnboardingModel: ObservableObject {
         stopRecording()
         stopTrustWatcher()
         stopDictationWatcher()
+        stopAppleWatcher()
         step = s
         switch s {
         case .mic:    refreshMic()
+        case .model:
+            refreshApple()
+            if appleStatus.canBecomeAvailable { startAppleWatcher() }
         case .speech:
             refreshSpeech()
             refreshDictation()
@@ -233,6 +239,35 @@ final class OnboardingModel: ObservableObject {
     }
 
     // MARK: 3 AI 모델
+
+    func refreshApple() {
+        guard !previewMode else { return }
+        let now = AppleClient.status()
+        if now != appleStatus {
+            appleStatus = now
+            Log.write("설치 안내: Apple AI 상태 \(now)")
+        }
+    }
+
+    func openAppleIntelligenceSettings() {
+        guard !previewMode else { return }
+        SystemSettings.open(.appleIntelligence)
+    }
+
+    /// 스위치를 켜면 먼저 .downloading 이 됐다가 .available 로 바뀐다. 2초마다 다시 본다.
+    private func startAppleWatcher() {
+        guard !previewMode, appleTimer == nil else { return }
+        appleTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
+            guard let self else { return }
+            self.refreshApple()
+            if !self.appleStatus.canBecomeAvailable { self.stopAppleWatcher() }
+        }
+    }
+
+    private func stopAppleWatcher() {
+        appleTimer?.invalidate()
+        appleTimer = nil
+    }
 
     func verifyKey() {
         let key = keyDraft.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -383,16 +418,19 @@ final class OnboardingModel: ObservableObject {
         stopRecording()
         stopTrustWatcher()
         stopDictationWatcher()
+        stopAppleWatcher()
     }
 }
 
 /// 시스템 설정 앱의 특정 화면을 연다. 권한은 앱이 못 켜므로 여기로 보내는 수밖에 없다.
 enum SystemSettings {
     enum Pane {
-        case microphone, speechRecognition, accessibility, dictation
+        case microphone, speechRecognition, accessibility, dictation, appleIntelligence
 
         var urls: [String] {
             switch self {
+            case .appleIntelligence: return ["x-apple.systempreferences:com.apple.Siri-Settings.extension",
+                                             "x-apple.systempreferences:com.apple.preference.speech"]
             case .microphone:        return ["x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"]
             case .speechRecognition: return ["x-apple.systempreferences:com.apple.preference.security?Privacy_SpeechRecognition"]
             case .accessibility:     return ["x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"]
@@ -749,6 +787,54 @@ private struct ModelStep: View {
                 .buttonStyle(.plain)
                 if model.geminiExpanded { keyField }
                 Text("나중에 설정 > AI 모델에서 언제든 바꿀 수 있습니다").font(.system(size: 12)).foregroundColor(.text4)
+            } else if model.appleStatus.canBecomeAvailable {
+                // C: 켤 수 있는데 꺼져 있거나 내려받는 중 — 가장 쉬운 길을 먼저 보여 준다
+                StepTitle("받아 적은 글을 정리할 AI 를 고릅니다")
+                Card(selected: true) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "sparkles").font(.system(size: 20)).foregroundColor(.ink).frame(width: 24)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(model.appleStatus == .downloading ? "Apple Intelligence 모델을 내려받는 중입니다" : "Apple Intelligence 를 켜면 키 없이 됩니다")
+                                .font(.system(size: 13.5, weight: .bold)).foregroundColor(.ink)
+                            Text(model.appleStatus == .downloading
+                                 ? "끝나면 이 맥 안에서 바로 정리합니다 · 무료 · 인터넷 불필요"
+                                 : "시스템 설정 > Apple Intelligence & Siri 에서 켜고 돌아오면 자동으로 확인됩니다 · 무료")
+                                .font(.system(size: 12)).foregroundColor(.text2).lineSpacing(2)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer(minLength: 8)
+                        if model.appleStatus == .downloading {
+                            Spinner(size: 14)
+                        } else {
+                            WizardButton("설정 열기", style: .primary, small: true) { model.openAppleIntelligenceSettings() }
+                        }
+                    }
+                }
+                HStack(spacing: 8) {
+                    Spinner(size: 11)
+                    Text("2초마다 확인 중").font(.system(size: 11.5)).foregroundColor(.text4)
+                    Spacer()
+                }
+                .padding(.leading, 4)
+                HStack(spacing: 10) {
+                    HairLine()
+                    Text("또는 Gemini 무료 키").font(.system(size: 12, weight: .bold)).foregroundColor(.text3).fixedSize()
+                    HairLine()
+                }
+                .padding(.vertical, 2)
+                keyField
+                if model.keyVerified {
+                    GreenBox("\(Prefs.geminiModel) 로 연결됐습니다 · 요약을 정리할 준비가 됐어요")
+                } else {
+                    HStack(spacing: 6) {
+                        Text("카드 등록 없이 무료입니다 ·").font(.system(size: 12)).foregroundColor(.text4)
+                        Button(action: { if let u = URL(string: "https://aistudio.google.com/apikey") { NSWorkspace.shared.open(u) } }) {
+                            Text("발급 페이지 열기").font(.system(size: 12, weight: .semibold)).foregroundColor(.ink).underline()
+                        }.buttonStyle(.plain)
+                        Spacer()
+                        Text("나중에 하면 원문만 복사됩니다").font(.system(size: 12)).foregroundColor(.text4)
+                    }
+                }
             } else {
                 StepTitle("정리에 쓸 Gemini 무료 키를 넣어 주세요")
                 keyField
