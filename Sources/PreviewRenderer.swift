@@ -99,6 +99,34 @@ enum PreviewRenderer {
         write(render(GeneralPane(model: settings).padding(20).frame(width: 620).background(Color.paperSoft)),
               to: dir.appendingPathComponent("2-settings-general-full.png"))
 
+        // 설치 안내 (시안 Sokki Onboarding.dc.html 의 아트보드 이름을 그대로 쓴다)
+        func wizard(_ name: String, dark: Bool = false, apple: Bool = true, _ setup: (OnboardingModel) -> Void) {
+            let m = OnboardingModel(previewMode: true, appleAvailable: apple)
+            setup(m)
+            write(render(OnboardingView(model: m), dark: dark), to: dir.appendingPathComponent("3-onboarding-\(name).png"))
+        }
+        wizard("W0-welcome") { _ in }
+        wizard("W1-mic-idle") { $0.step = .mic }
+        wizard("W1-mic-requesting") { $0.step = .mic; $0.mic = .requesting }
+        wizard("W1-mic-granted") { $0.step = .mic; $0.mic = .granted }
+        wizard("W1-mic-denied") { $0.step = .mic; $0.mic = .denied }
+        wizard("W2-speech-idle") { $0.step = .speech }
+        wizard("W2-speech-granted-dictation-unchecked") { $0.step = .speech; $0.speech = .granted }
+        wizard("W2-speech-done") { $0.step = .speech; $0.speech = .granted; $0.dictationChecked = true }
+        wizard("W3-model-A") { $0.step = .model }
+        wizard("W3-model-B-empty", apple: false) { $0.step = .model }
+        wizard("W3-model-B-verified", apple: false) { $0.step = .model; $0.keyVerified = true }
+        wizard("W4-hotkey-default") { $0.step = .hotkey }
+        wizard("W4-hotkey-recording") { $0.step = .hotkey; $0.recording = true }
+        wizard("W4-hotkey-modifier-only") { $0.step = .hotkey; $0.presetIndex = nil; $0.hotKeyTitle = "fn⌃"; $0.hotKeyIsModifierOnly = true }
+        wizard("W5-paste-default") { $0.step = .paste }
+        wizard("W5-paste-waiting") { $0.step = .paste; $0.autoPaste = true }
+        wizard("W5-paste-granted") { $0.step = .paste; $0.autoPaste = true; $0.accessibilityTrusted = true }
+        wizard("W6-fields") { $0.step = .fields; $0.usageContexts = [.meeting, .devFrontend] }
+        wizard("W7-done") { $0.step = .done }
+        wizard("W0-welcome-dark", dark: true) { _ in }
+        wizard("W1-mic-idle-dark", dark: true) { $0.step = .mic }
+
         let strip = HStack(spacing: 24) {
             ForEach([10.0, 30.0, 44.0, 60.0, 70.0, 85.0], id: \.self) { f in
                 VStack(spacing: 6) {
