@@ -100,10 +100,12 @@ final class SettingsModel: ObservableObject {
     }
 
     /// 설치 안내처럼 설정 창 밖에서 Prefs 를 바꿨을 때. 각 didSet 이 같은 값을 되쓰므로 해가 없다.
-    /// ⚠️ hotKeyIndex 의 didSet 이 customHotKey 를 지우므로 customHotKey 를 나중에 넣는다.
+    /// ⚠️ hotKeyIndex 의 didSet 이 Prefs.customHotKey 를 지운다. 대입 전에 먼저 읽어 두지 않으면
+    /// 직접 설정한 단축키(fn⌃ 등)가 사라진다 — 0.3.0 에서 마법사로 정한 단축키가 프리셋으로 되돌아갔다.
     func reloadFromPrefs() {
+        let custom = Prefs.customHotKey
         hotKeyIndex = Prefs.hotKeyIndex
-        customHotKey = Prefs.customHotKey
+        customHotKey = custom
         autoPaste = Prefs.autoPaste
         usageContexts = Prefs.usageContexts
         backend = Prefs.backend
