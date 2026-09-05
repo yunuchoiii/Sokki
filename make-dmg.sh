@@ -45,8 +45,9 @@ fi
 
 # 공증: Developer ID 로 서명됐고 notarytool 프로필 'sokki' 가 있으면 자동으로 한다. NOTARIZE=0 으로 끌 수 있다.
 #   프로필 저장(한 번): xcrun notarytool store-credentials sokki --apple-id <애플ID> --team-id <팀ID>
-if [[ "${NOTARIZE:-1}" == "1" ]] \
-   && codesign -dvv "$APP" 2>&1 | grep -q "Developer ID Application" \
+# (grep -q 는 파이프를 일찍 닫아 pipefail 에 걸리므로 변수로 받아 비교한다)
+SIGNATURE="$(codesign -dvv "$APP" 2>&1 || true)"
+if [[ "${NOTARIZE:-1}" == "1" && "$SIGNATURE" == *"Developer ID Application"* ]] \
    && xcrun notarytool history --keychain-profile sokki >/dev/null 2>&1; then
   echo "▶ 공증 요청 중… (보통 1~5분)"
   xcrun notarytool submit "$DMG" --keychain-profile sokki --wait
