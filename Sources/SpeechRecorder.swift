@@ -25,7 +25,9 @@ enum RecorderError: LocalizedError {
 /// 마이크 입력을 받아 Apple Speech 프레임워크로 실시간 받아쓰기한다.
 final class SpeechRecorder {
 
-    private let engine = AVAudioEngine()
+    /// 녹음마다 새로 만들고 끝나면 놓아준다. 엔진을 앱 수명 동안 붙들고 있으면 stop() 뒤에도 에어팟이
+    /// 통화 모드(출력 볼륨 낮춤·마이크 48kHz)에 남는다 — 객체가 해제될 때만 원래대로 돌아온다. reset() 도 소용없다 (2026-09-05 실측).
+    private var engine: AVAudioEngine?
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
     private var recognizer: SFSpeechRecognizer?
@@ -96,10 +98,13 @@ final class SpeechRecorder {
         request = req
         Log.write("인식 방식: \(usingOnDevice ? "온디바이스" : "애플 서버")")
 
+        let engine = AVAudioEngine()
+        self.engine = engine
         let input = engine.inputNode
         let format = input.outputFormat(forBus: 0)
         Log.write("입력 포맷: \(format.sampleRate)Hz \(format.channelCount)ch")
         guard format.sampleRate > 0, format.channelCount > 0 else {
+            self.engine = nil
             throw RecorderError.noInputDevice
         }
 
@@ -111,6 +116,7 @@ final class SpeechRecorder {
             try engine.start()
         } catch {
             input.removeTap(onBus: 0)
+            self.engine = nil
             Log.write("engine.start 실패: \(error)")
             throw error
         }
@@ -158,8 +164,7 @@ final class SpeechRecorder {
         self.completion = completion
         removeConfigObserver()
 
-        engine.inputNode.removeTap(onBus: 0)
-        engine.stop()
+        releaseEngine()
         request?.endAudio()
         Log.write("녹음 종료 — 오디오 버퍼 \(bufferCount)개 전달됨")
 
@@ -186,8 +191,7 @@ final class SpeechRecorder {
         completion = nil
         didFinish = true
         safetyTimer?.cancel()
-        engine.inputNode.removeTap(onBus: 0)
-        engine.stop()
+        releaseEngine()
         request?.endAudio()
         task?.cancel()
         task = nil
@@ -210,7 +214,7 @@ final class SpeechRecorder {
     }
 
     private func restartAfterDeviceChange() {
-        guard isRunning, let req = request else { return }
+        guard isRunning, let req = request, let engine else { return }
         let input = engine.inputNode
         let format = input.outputFormat(forBus: 0)
         Log.write("입력 장치 변경 감지 — \(format.sampleRate)Hz \(format.channelCount)ch 로 재시작")
@@ -227,6 +231,14 @@ final class SpeechRecorder {
             Log.write("장치 변경 후 engine.start 실패: \(error)")
             DispatchQueue.main.async { self.failure = error }
         }
+    }
+
+    /// 마이크를 시스템에 완전히 돌려준다. stop() 만으로는 에어팟 통화 모드가 안 풀린다.
+    private func releaseEngine() {
+        guard let engine else { return }
+        engine.inputNode.removeTap(onBus: 0)
+        engine.stop()
+        self.engine = nil
     }
 
     private func removeConfigObserver() {
