@@ -1,207 +1,162 @@
-# Sokki — Typeless 스타일 음성 받아쓰기 (macOS)
+# Sokki
 
-단축키를 누르고 말하면, Apple 음성인식이 받아적고 Claude가 정리해서, 커서가 있는 자리에 바로 붙여 넣습니다.
+단축키를 누르고 말하면, 받아 적고, AI 가 군말을 정리해서, 커서가 있는 자리에 붙여 넣어 주는 macOS 메뉴바 앱입니다.
+
+**[⬇ 최신 버전 다운로드 (DMG)](https://github.com/yunuchoiii/Sokki/releases/latest)** · macOS 13 이상 · 무료
 
 ```
-⌃⌥Space → 말하기 → (3초 침묵 또는 ⌃⌥Space) → 요약 → 클립보드 복사 / 커서 위치에 붙여넣기
+단축키 → 말하기 → 단축키 → AI 정리 → 클립보드 복사 (또는 커서 위치에 자동 붙여넣기)
 ```
 
-메뉴바 🎙 대신 파형 로고가 뜨고, 클릭하면 팝오버가 열립니다. 팝오버는 시안
-(claude.ai/design "Voice Summary App")의 세 상태를 그대로 따릅니다.
+받아쓰기는 macOS 에 내장된 애플 음성 인식을 씁니다. 돈이 들거나 키가 필요한 건 "AI 정리" 단계뿐이고,
+그것도 **무료 Gemini 키**나 **macOS 26 의 Apple Intelligence** 로 무료로 쓸 수 있습니다. Claude 는 선택 사항입니다.
 
-| 상태 | 화면 |
+## 설치
+
+1. 위 링크에서 `Sokki-x.y.z.dmg` 를 받아 엽니다.
+2. Sokki 를 **Applications** 폴더로 끌어 넣고 실행합니다. 애플 공증을 받은 앱이라 경고 없이 열립니다.
+3. 처음 녹음할 때 **마이크**와 **음성 인식** 권한 창이 뜹니다. 둘 다 허용합니다.
+4. **시스템 설정 > 키보드 > 받아쓰기**를 켜고 언어에 한국어를 추가합니다.
+   이 스위치가 꺼져 있으면 인식이 아예 되지 않습니다. 설정 > 고급 & 진단 > "받아쓰기 설정 열기"로 바로 갈 수 있습니다.
+5. 첫 실행 때 설정 창이 열리면 주로 쓰는 분야를 고릅니다. 용어를 알아듣는 데 씁니다.
+
+메뉴바에 파형 아이콘이 생기면 준비 끝입니다. Dock 에도 Sokki 가 뜨는데, 원하지 않으면 설정 > 일반에서 끌 수 있습니다.
+
+## 사용법
+
+- **⌃⌥Space** 를 누르고 말합니다. 다시 누르면 녹음이 끝나고 정리가 시작됩니다.
+  단축키는 설정 > 일반에서 바꿀 수 있고, `fn⌃` 처럼 수정자 키만 눌렀다 떼는 것도 됩니다.
+- 정리가 끝나면 결과가 **클립보드에 복사**됩니다. 어디든 ⌘V 로 붙여 넣으세요.
+- 커서 위치에 **자동으로 붙여 넣게** 하려면 설정 > 일반 > "커서 위치에 자동 붙여넣기"를 켭니다.
+  시스템 설정 > 개인정보 보호 및 보안 > 손쉬운 사용에서 Sokki 를 허용해야 합니다.
+- 메뉴바 아이콘이나 Dock 아이콘을 누르면 창이 열립니다. 최근 요약, 원문 보기, 다시 요약, 전체 기록이 여기 있습니다.
+- 말을 멈추면 알아서 끝내게 하려면 설정 > 일반 > "말을 멈추면 자동 요약"을 켭니다 (기본은 꺼져 있고 5초).
+- AI 정리가 실패해도 말한 내용은 사라지지 않습니다. 원문이 그대로 복사되고 "다시 요약" 버튼이 나옵니다.
+
+## AI 모델 고르기
+
+설정 > 인식 & 정리 > **AI 모델**. 받아쓰기 자체는 어느 쪽을 골라도 무료입니다.
+
+| 선택 | 필요한 것 | 비용 | 속도 |
+|---|---|---|---|
+| **AUTO** (기본) | Gemini 무료 키. macOS 26 이고 Apple Intelligence 가 켜져 있으면 둘을 같이 돌려 나은 쪽을 씀 | 무료 | 1~5초 |
+| Apple AI (이 맥) | macOS 26 + Apple Intelligence | 무료, 인터넷 불필요 | 1~2초 |
+| Gemini | [Google AI Studio](https://aistudio.google.com/apikey) 무료 키 (카드 등록 불필요) | 무료 | 1~5초, 혼잡할 땐 가끔 실패 |
+| Claude API | Anthropic 키 + 크레딧 충전 | 한 번에 4원 안팎 | 1초 안팎 |
+| Claude Code | Claude 구독 + 터미널에서 `claude` 로그인 | 구독 사용량 | 10~60초 |
+| AI 로 정리하기 끄기 | 없음 | 무료 | 받아쓰기 원문 그대로 |
+
+**가장 쉬운 길**은 Gemini 무료 키입니다. 설정 > 인식 & 정리 > API 키 옆의 **?** 버튼에 발급 순서가 있고,
+"발급 페이지 열기"를 누르면 바로 갑니다. 키는 이 맥의 본인 계정만 읽을 수 있는 파일에 저장됩니다
+(`~/Library/Application Support/Sokki/keys.json`).
+
+macOS 26 을 쓰고 있다면 키 없이도 Apple AI 만으로 됩니다. 인터넷도 필요 없습니다.
+
+## 설정 창 한눈에
+
+메뉴바 아이콘 우클릭 또는 창의 **설정…** 으로 엽니다.
+
+| 탭 | 있는 것 |
 |---|---|
-| 대기 | 녹음 시작 버튼, 단축키 안내, 최근 요약 3건(복사 아이콘·모두 보기) |
-| 녹음 중 | 다크 화면, 실시간 파형·부분 인식 텍스트, 타이머, 완료/취소 |
-| 완료 | "클립보드에 복사됐어요" 토스트, 제목·언어·길이, 불릿 요약, 원문 보기 · 다시 요약 · ··· |
+| 일반 | 단축키, 자동 요약, 인식 언어(한국어·English·日本語), 클립보드·자동 붙여넣기, 로그인 시 실행, Dock 표시 |
+| 개인화 | 주로 쓰는 분야, 내 소개, 추가 용어("잘못 들린 말 → 올바른 표기"), 화면 모드 |
+| 인식 & 정리 | 애플 서버 인식 여부, AI 모델, 정리 스타일(기본·격식·구어체·원문 최소 손질), API 키 |
+| 단축키 | 직접 녹음 또는 프리셋 |
+| 고급 & 진단 | 상태 진단, AI 연결 테스트, 붙여넣기 테스트, 로그 열기, 시스템 설정 바로 가기 |
 
-설정은 팝오버의 **설정…** 또는 상태 아이콘 우클릭 → "설정 창 열기…" 로 여는 별도 창입니다
-(일반 / 인식 & 정리 / 단축키 / 고급 & 진단). 단축키는 프리셋 외에 칸을 클릭하고 원하는
-조합을 눌러 직접 정할 수 있습니다.
+## 안 될 때
 
-## 설치 (다운로드)
+설정 > 고급 & 진단의 **현재 상태 진단**이 권한·언어·키 상태를 한 화면에 보여 줍니다.
 
-1. [Releases](https://github.com/yunuchoiii/Sokki/releases) 에서 최신 `Sokki-x.y.z.dmg` 를 받습니다.
-2. 열어서 Sokki 를 Applications 폴더로 끌어 넣습니다.
-3. 응용 프로그램에서 Sokki 를 엽니다. **"확인되지 않은 개발자" 경고가 뜨면** 시스템 설정 >
-   개인정보 보호 및 보안 > 맨 아래 **"그래도 열기"** 를 누릅니다. 한 번만 하면 됩니다.
-   (애플 공증을 받지 않은 앱이라 뜨는 안내입니다. 개발자 계정이 생기면 없어집니다.)
-4. 메뉴바에 파형 아이콘이 생기면 끝. 처음엔 설정 창이 열려 주로 쓰는 분야를 고르게 합니다.
+| 증상 | 확인할 것 |
+|---|---|
+| 말했는데 아무것도 안 나옴 | 시스템 설정 > 키보드 > 받아쓰기가 켜져 있는지. 마이크 권한. 로그의 `오디오 버퍼 N개` 가 0 이면 마이크가 안 잡힌 것 |
+| 원문은 나오는데 정리가 안 됨 | AI 모델 연결 테스트. Gemini 는 저녁 시간에 503 이 잦으니 AUTO 나 Apple AI 로 |
+| 클립보드에만 복사되고 붙여넣기가 안 됨 | 손쉬운 사용 권한. 앱을 새로 설치했다면 목록에서 Sokki 를 뺐다가 다시 추가 |
+| 에어팟으로 녹음하면 소리가 줄어듦 | 녹음 중에는 macOS 가 에어팟을 통화 모드로 바꿉니다. 녹음이 끝나면 돌아옵니다 |
 
-DMG 를 직접 만들려면 `./make-dmg.sh`. 이 맥에 **Developer ID Application** 인증서와 `notarytool` 프로필
-(`xcrun notarytool store-credentials sokki …`)이 있으면 서명·공증·스테이플까지 자동으로 해서, 받는 사람은
-경고 없이 바로 엽니다. 배포는 `gh release create v0.1.0 build/Sokki-0.1.0.dmg` 처럼 로컬에서 만든 공증 DMG 를 올립니다.
-(GitHub Actions 워크플로는 인증서가 없어 공증이 안 되므로 수동 실행 전용 백업입니다.)
+로그는 `~/Library/Logs/Sokki.log` 에 남습니다. 설정 > 고급 & 진단 > "로그 열기".
 
-## 빌드 (소스에서)
+## 개인정보
 
-Xcode는 필요 없고 명령줄 도구만 있으면 됩니다.
+- 음성은 애플 음성 인식으로 처리합니다. 기본은 이 맥 안에서만 인식하고, "애플 서버에서 처리"를 켜면 애플 서버로 갑니다.
+- 받아 적은 텍스트는 고른 AI 모델에만 전송됩니다. Apple AI 를 고르면 아무 데도 보내지 않습니다.
+- 요약 기록은 이 맥에만 저장됩니다.
+
+---
+
+# 개발자용
+
+Xcode 프로젝트 없이 `swiftc` 로 빌드합니다. 명령줄 도구만 있으면 됩니다.
 
 ```bash
 xcode-select --install      # 이미 있으면 건너뜀
-cd Sokki
-chmod +x build.sh
-./build.sh
-open build/Sokki.app
+./build.sh                  # build/Sokki.app  (서명: Developer ID > 로컬 'Sokgi Dev' > 애드혹 순으로 자동)
+./build.sh --install        # /Applications 에 설치하고 실행 (실행 중인 Sokki 는 종료)
+open build/Sokki.app        # 터미널에서 Contents/MacOS/Sokki 를 직접 실행하면 권한 주체가 터미널이 되어 붙여넣기가 안 됨
 ```
 
-메뉴바에 파형 아이콘이 생깁니다. Dock에는 뜨지 않습니다.
+작업 규칙과 구조에서 안 보이는 결정은 [CLAUDE.md](CLAUDE.md) 에 있습니다.
 
-팝오버 각 화면을 PNG로 뽑아 보려면 (시안 대조용):
+## 검증
 
 ```bash
-./build/Sokki.app/Contents/MacOS/Sokki --render-previews /tmp/sokki-previews
+build/Sokki.app/Contents/MacOS/Sokki --render-previews /tmp/sokki-previews   # 팝오버·설정 창 각 상태를 PNG 로
+build/Sokki.app/Contents/MacOS/Sokki --polish "어 그 테스트 입니다"            # 녹음 없이 정리만 (GEMINI_API_KEY 환경변수 가능)
+tail -f ~/Library/Logs/Sokki.log                                             # "자동 모드: ○○ 채택 (n초)" 로 어느 모델이 이겼는지
 ```
 
-## 첫 실행 시 해야 할 것
+## 배포
 
-1. **API 키**: 메뉴바 🎙 → `Claude API 키 설정…` → console.anthropic.com에서 발급한 키 입력 (macOS 키체인에 저장됨)
-2. **마이크 / 음성 인식**: 처음 녹음할 때 권한 창이 뜹니다. 허용.
-3. **접근성**: 시스템 설정 → 개인정보 보호 및 보안 → 손쉬운 사용 → Sokki 켜기.
-   이게 없으면 자동 붙여넣기가 안 되고 클립보드 복사까지만 됩니다.
-4. **macOS 받아쓰기 (필수)**: 시스템 설정 → 키보드 → **받아쓰기를 켜고** 언어에 한국어를 추가하세요.
-   이게 꺼져 있으면 `Siri and Dictation are disabled` 오류가 나면서 인식이 아예 안 됩니다.
-   온디바이스든 애플 서버든 둘 다 이 스위치에 의존합니다.
+```bash
+./make-dmg.sh               # 빌드 → DMG → Developer ID 서명 → 공증 → 스테이플
+```
 
-## 메뉴 기능
-
-| 항목 | 설명 |
-|---|---|
-| 인식 언어 | 한국어 / English / 日本語 |
-| 정리 스타일 | 기본 · 격식체 · 구어체 유지 · 원문 최소 손질 |
-| 단축키 | ⌃⌥Space, ⌥Space, ⌃⌥D, ⌘⇧Space 중 선택 |
-| Claude 모델 | Sonnet(기본) / Haiku(빠르고 저렴) / Opus |
-| Claude로 정리하기 | 끄면 받아쓰기 원문을 그대로 붙여넣음 |
-| 붙여넣기 후 클립보드 복원 | 원래 복사해 둔 내용을 되돌려 줌 |
-| 말을 멈추고 3초 뒤 자동 요약 | 끄면 단축키를 다시 누를 때만 요약 |
+Developer ID Application 인증서와 `notarytool` 프로필 `sokki`(`xcrun notarytool store-credentials sokki …`)가
+있는 맥에서만 공증됩니다. 순서: Info.plist 버전 올림 → `make-dmg.sh` → dev→main PR → 머지 **후** 태그 →
+`gh release create vX.Y.Z build/Sokki-X.Y.Z.dmg`. GitHub Actions 워크플로는 인증서가 없어 공증이 안 되므로 수동 실행 전용입니다.
 
 ## 구조
 
 ```
 Sources/
-  main.swift            메뉴바 앱, 상태 머신, 팝오버 연결, 설정 메뉴, 침묵 감지
-  PopoverView.swift     SwiftUI 팝오버 화면 (대기 / 녹음 중 / 요약 중 / 완료 / 기록 / 오류)
+  main.swift            앱 진입, 상태 머신, 팝오버·Dock·메뉴, 침묵 감지, 진단
+  PopoverView.swift     팝오버 화면 (대기 / 녹음 중 / 정리 중 / 완료 / 기록 / 오류)
   AppModel.swift        팝오버가 관찰하는 상태와 동작
-  Theme.swift           시안 팔레트, 로고 벡터(메뉴바 템플릿 아이콘·앱 아이콘)
-  History.swift         요약 기록 저장(UserDefaults), 제목·날짜·길이 포맷
-  SettingsWindow.swift  설정 창 (SwiftUI), 단축키 녹음기, 로그인 시 자동 실행
-  PreviewRenderer.swift --render-previews: 각 화면을 PNG로 저장
-  SpeechRecorder.swift  AVAudioEngine 마이크 탭 + SFSpeechRecognizer 실시간 인식, 입력 레벨
-  ClaudeClient.swift    정리 프롬프트/스타일, 백엔드 분기, Anthropic API 호출
-  GeminiClient.swift    Google AI Studio 호출 (기본 백엔드)
-  CLIClient.swift       claude -p 서브프로세스 호출 (구독 사용), 경로 탐색·로그인 확인
-  Log.swift             stderr + ~/Library/Logs/Sokki.log
-  HotKey.swift          Carbon 전역 핫키 (접근성 권한 없이도 동작)
-  Paster.swift          클립보드 백업 → 텍스트 주입 → Cmd+V 합성 → 클립보드 복원
-  Prefs.swift           키체인 API 키 저장, UserDefaults 설정
-Info.plist              LSUIElement, 마이크/음성인식 권한 문구
-build.sh                swiftc(+SwiftUI) → .app 번들 → 아이콘 → 서명
-make-dmg.sh             build.sh 결과를 DMG 로 (Applications 끌어넣기 화면 + 첫 실행 안내)
-.github/workflows/      v* 태그 → macOS 러너 빌드 → Release 에 DMG 첨부
+  SettingsWindow.swift  설정 창 (일반 / 개인화 / 인식 & 정리 / 단축키 / 고급 & 진단)
+  SpeechRecorder.swift  AVAudioEngine 마이크 탭 + SFSpeechRecognizer 실시간 인식 (녹음마다 엔진 생성·해제)
+  ClaudeClient.swift    정리 프롬프트·스타일·말투 감지, AI 모델 분기(Polisher), Anthropic API
+  GeminiClient.swift    Google AI Studio (모델 겹쳐 쏘기, 폴백)
+  AppleClient.swift     macOS 26 FoundationModels 온디바이스 (약한 링크)
+  CLIClient.swift       claude -p 서브프로세스
+  HotKey.swift          Carbon 전역 핫키 + 수정자 전용 핫키(fn⌃ 등, 접근성 권한 필요)
+  Paster.swift          클립보드 백업 → 주입 → ⌘V 합성 → 복원
+  History.swift         요약 기록 (UserDefaults)
+  Prefs.swift           설정(UserDefaults), API 키 파일(keys.json, 0600)
+  Theme.swift           팔레트, 로고 벡터
+  PreviewRenderer.swift --render-previews
+  Log.swift             ~/Library/Logs/Sokki.log
+Info.plist              LSUIElement, 권한 문구, 버전
+Sokki.entitlements      하드닝 런타임용 (audio-input 없으면 마이크가 조용히 안 잡힘)
+build.sh · make-dmg.sh
 ```
 
 동작 흐름:
 
 ```
-전역 핫키
-   ↓
-AVAudioEngine 마이크 탭 ──→ SFSpeechRecognitionRequest (부분 결과 스트리밍)
-   ↓ (핫키 다시)
-endAudio → 최종 transcript
-   ↓
-Claude Messages API (system: 정리 규칙 + 스타일)
-   ↓
-NSPasteboard 주입 → CGEvent로 ⌘V → 0.6초 뒤 클립보드 원복
+전역 핫키 → AVAudioEngine 마이크 탭 → SFSpeechRecognizer (부분 결과 스트리밍)
+  → 핫키 다시 → 최종 원문 → Glossary.apply(용어 치환) → Polisher (AUTO: Apple 온디바이스 ∥ Gemini)
+  → 클립보드 복사 / NSPasteboard 주입 → ⌘V 합성 → 클립보드 복원
 ```
 
 ## 알아 둘 점
 
-- **애드혹 서명이라 재빌드할 때마다 권한이 초기화될 수 있습니다.** 다시 빌드했는데 붙여넣기가 안 되면 손쉬운 사용 목록에서 Sokki를 뺐다가 다시 추가하세요.
-- **Claude 실패 시 원문을 붙여 넣습니다.** 네트워크가 끊기거나 키가 잘못돼도 말한 내용은 사라지지 않습니다.
-- **애플 서버 인식은 한 번에 약 1분 제한**이 있습니다. 길게 말할 일이 많으면 온디바이스 인식을 켜거나, 정확도가 아쉬우면 `SpeechRecorder`를 whisper.cpp로 교체하면 됩니다. 인터페이스(`start(localeID:onPartial:)` / `stop(completion:)`)만 맞추면 나머지 코드는 그대로 씁니다.
-- **비용**: 받아쓰기는 무료(애플), 정리만 Claude API 과금. Haiku로 두면 한 번에 0.1원 수준입니다.
-
-## 안 될 때
-
-메뉴바 🎙 → **진단** 안에 네 가지가 있습니다.
-
-| 항목 | 확인되는 것 |
-|---|---|
-| 현재 상태 진단 | 권한 4종, 인식 언어, API 키 유무를 한 화면에 |
-| 붙여넣기 테스트 | 3초 뒤 커서 위치에 텍스트 주입 → 접근성 권한 문제 분리 |
-| Claude 연결 테스트 | API 키·크레딧·모델명 문제 분리 |
-| 로그 열기 | `~/Library/Logs/Sokki.log` — 단계별 실행 기록 |
-
-증상별로:
-
-- **말했는데 아무 것도 안 나옴** → 로그의 `오디오 버퍼 N개` 확인. 0이면 마이크가 안 잡히는 것. 버퍼는 오는데 텍스트가 비면 인식 실패이므로 메뉴에서 `애플 서버 인식 강제`를 켜고 다시 시도.
-- **원문은 붙는데 정리가 안 됨** → Claude 호출 실패. `Claude 연결 테스트` 실행.
-- **클립보드에만 복사됨** → 접근성 권한 없음. 재빌드했다면 손쉬운 사용 목록에서 Sokki를 뺐다가 다시 추가.
-
-터미널에서 직접 실행하면 로그가 실시간으로 보입니다:
-
-```bash
-./build/Sokki.app/Contents/MacOS/Sokki
-```
-
-## 요금 — 정리 백엔드 두 가지
-
-받아쓰기(애플 음성인식)는 언제나 무료입니다. 돈이 드는 건 정리 단계뿐이고,
-메뉴 > `정리 백엔드`에서 둘 중에 고릅니다.
-
-### 0. Gemini (기본값) — 무료
-
-AI Studio 키로 `gemini-3.1-flash-lite`를 부릅니다. 4초 안에 답이 없거나 503/429가 오면
-다음 모델(`gemini-flash-lite-latest` → `gemini-flash-latest`)을 겹쳐 쏘고 먼저 온 답을 씁니다.
-Gemini가 전부 막히면 Claude API 키가 있으면 그쪽으로, 없으면 Claude CLI로 넘어갑니다.
-정리만 따로 돌려 보려면:
-
-```bash
-GEMINI_API_KEY=... ./build/Sokki.app/Contents/MacOS/Sokki --polish "어 그 테스트 입니다"
-```
-
-### 1. Claude Code CLI — 구독으로 처리
-
-이미 내고 있는 claude.ai 구독(Pro/Max) 사용량으로 나갑니다. **추가 결제 없음.**
-앱이 내부적으로 이렇게 부릅니다:
-
-```bash
-claude -p "<받아쓴 원문>" --system-prompt "<정리 규칙>" \
-       --model haiku --tools "" --bare --no-session-persistence --max-turns 1
-```
-
-`--bare`로 스킬·플러그인·MCP 로딩을 건너뛰어 시작을 앞당기고, `--tools ""`로
-코딩 도구를 전부 떼어내 순수 텍스트 편집기로만 씁니다.
-
-준비물: 터미널에서 `claude auth login` 한 번. GUI 앱은 로그인 셸 PATH를 물려받지
-못해서 실행 파일을 자동 탐색하는데, 못 찾으면 메뉴 > 진단 > `CLI 경로 직접 지정…`에
-`which claude` 결과를 넣어 주세요.
-
-단점은 지연 시간입니다. API 직접 호출이 1초 안쪽이라면 CLI는 프로세스가 뜨는 만큼
-2~4초쯤 걸립니다. 그리고 구독 사용량 한도를 같이 씁니다.
-
-### 2. Anthropic API — 크레딧 별도 충전
-
-console.claude.com에서 키를 만들고 크레딧을 충전해야 합니다. 구독료와는 별개 청구예요.
-대신 빠릅니다. 실제 단가(2026년 9월 기준):
-
-| 모델 | 입력 | 출력 |
-|---|---|---|
-| Haiku 4.5 | $1 / 100만 토큰 | $5 / 100만 토큰 |
-| Sonnet 5 | $2 / 100만 토큰 | $10 / 100만 토큰 |
-
-한 번 받아쓰기에 입력 700 · 출력 400토큰쯤 잡으면 Haiku 기준 약 $0.0027, **4원 정도**입니다.
-하루 50번씩 한 달이면 6천원 안팎이에요.
-
-### 3. 아예 안 쓰기
-
-메뉴에서 `Claude로 정리하기`를 끄면 애플 받아쓰기 원문이 그대로 붙습니다. 완전 무료지만
-군말과 오타가 그대로 남습니다.
+- 애플 서버 인식은 한 번에 약 1분 제한이 있습니다. 온디바이스 인식은 제한이 없습니다.
+- 애드혹 서명 빌드는 재빌드마다 접근성 권한이 풀릴 수 있습니다. `./build.sh --install --reset-perms`.
+- 번들 ID `com.sokki.dictation` 을 바꾸면 권한과 설정이 초기화됩니다.
 
 ## 다음에 붙일 만한 것
 
 - 푸시투토크 (누르고 있는 동안만 녹음)
-- 녹음 중 파형/부분 텍스트 HUD 오버레이
-- 히스토리 창 + 재사용
-- 앱별 정리 스타일 자동 전환 (Slack이면 구어체, Mail이면 격식체)
-- 커스텀 단어 사전 (고유명사 교정)
+- 앱별 정리 스타일 자동 전환 (Slack 이면 구어체, Mail 이면 격식체)
+- whisper.cpp 인식 엔진 (`SpeechRecorder` 인터페이스만 맞추면 교체 가능)
