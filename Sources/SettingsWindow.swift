@@ -88,6 +88,7 @@ final class SettingsModel: ObservableObject {
         var showDiagnostics: () -> Void = {}
         var openDictationSettings: () -> Void = {}
         var openAccessibility: () -> Void = {}
+        var reopenOnboarding: () -> Void = {}
     }
     var actions = Actions()
 
@@ -96,6 +97,18 @@ final class SettingsModel: ObservableObject {
     func refresh() {
         accessibilityTrusted = Paster.isTrusted
         launchAtLogin = SMAppService.mainApp.status == .enabled
+    }
+
+    /// 설치 안내처럼 설정 창 밖에서 Prefs 를 바꿨을 때. 각 didSet 이 같은 값을 되쓰므로 해가 없다.
+    /// ⚠️ hotKeyIndex 의 didSet 이 customHotKey 를 지우므로 customHotKey 를 나중에 넣는다.
+    func reloadFromPrefs() {
+        hotKeyIndex = Prefs.hotKeyIndex
+        customHotKey = Prefs.customHotKey
+        autoPaste = Prefs.autoPaste
+        usageContexts = Prefs.usageContexts
+        backend = Prefs.backend
+        showOnboarding = !Prefs.onboarded
+        refresh()
     }
 
     func setLaunchAtLogin(_ on: Bool) {
@@ -555,6 +568,7 @@ struct AdvancedPane: View {
                 ActionRow("로그 열기", Log.url.path, action: model.actions.openLog, last: true)
             }
             SettingsSection("시스템") {
+                ActionRow("처음 설정 안내 다시 보기", "권한·AI 모델·단축키를 처음처럼 한 단계씩 다시 설정합니다.", action: model.actions.reopenOnboarding)
                 ActionRow("받아쓰기 설정 열기", "시스템 설정 > 키보드 > 받아쓰기가 꺼져 있으면 인식이 되지 않습니다.", action: model.actions.openDictationSettings)
                 ActionRow("손쉬운 사용 권한 열기", "자동 붙여넣기에 필요합니다.", action: model.actions.openAccessibility, last: true)
             }

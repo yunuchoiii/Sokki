@@ -107,6 +107,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private var phaseObserver: AnyCancellable?
 
     let settings = SettingsWindowController()
+    /// 첫 실행 설치 안내. 권한을 한 화면에 하나씩 요청한다 (시안 Sokki Onboarding.dc.html).
+    let onboarding = OnboardingWindowController()
 
     /// 요약 요청 세대. 취소하면 올려서 늦게 오는 결과를 버린다.
     private var polishGeneration = 0
@@ -156,27 +158,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             self?.model.refreshPrefs()
         }
 
-        SpeechRecorder.requestPermissions { [weak self] result in
-            switch result {
-            case .success:
-                self?.model.micReady = true
-            case .failure(let error):
-                self?.model.micReady = false
-                self?.fail(error.localizedDescription)
-            }
-        }
-
         registerHotKey()
         Log.write("실행 경로: \(Bundle.main.bundlePath)")
-
-        // 처음 실행: 어디에 쓰는지 골라 달라고 설정 창을 연다 (권한 창들 뒤에 뜨도록 살짝 늦춘다)
-        if !Prefs.onboarded {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-                self.settings.model.tab = .personal
-                self.settings.show()
-            }
-        }
         Log.write("자동 붙여넣기: \(Prefs.autoPaste), 접근성 권한: \(Paster.isTrusted)")
+
+        onboarding.onFinish = { [weak self] in
+            guard let self else { return }
+            self.requestRecorderPermissions()
+            self.settings.model.reloadFromPrefs()
+            self.model.refreshPrefs()
+            Log.write("설치 안내 완료")
+        }
+
+        if !Prefs.onboarded {
+            // 처음 실행: 마이크·음성 인식 권한 창을 한꺼번에 띄우지 않는다. 설치 안내가 한 단계씩 요청한다.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { self.onboarding.show() }
+            return
+        }
+
+        requestRecorderPermissions()
 
         // 기본값은 클립보드 복사이므로 권한을 요구하지 않는다.
         // 자동 붙여넣기를 켠 사용자에게만 안내한다.
@@ -186,6 +186,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 self.showAccessibilityNotice()
             }
             startTrustWatcher()
+        }
+    }
+
+    /// 이미 허용된 권한은 창 없이 바로 돌아온다. 처음 실행에선 설치 안내가 끝난 뒤에 부른다.
+    private func requestRecorderPermissions() {
+        SpeechRecorder.requestPermissions { [weak self] result in
+            switch result {
+            case .success:
+                self?.model.micReady = true
+            case .failure(let error):
+                self?.model.micReady = false
+                self?.fail(error.localizedDescription)
+            }
         }
     }
 
@@ -564,6 +577,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         model.refreshPrefs()
         settings.model.refresh()
         settings.applyAppearance()
+        onboarding.applyAppearance()
         if popover.isShown {
             popover.appearance = Prefs.appearance.nsAppearance
                 ?? NSAppearance(named: Prefs.appearance.isDark ? .darkAqua : .aqua)
@@ -581,6 +595,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         settings.model.actions.showDiagnostics = { [weak self] in self?.showDiagnostics() }
         settings.model.actions.openDictationSettings = { [weak self] in self?.openDictationSettings() }
         settings.model.actions.openAccessibility = { [weak self] in self?.openAccessibility() }
+        settings.model.actions.reopenOnboarding = { [weak self] in self?.onboarding.show() }
     }
 
     /// 상태 아이콘 우클릭 · 팝오버의 "설정…" 에서 기존 설정 메뉴를 띄운다.
