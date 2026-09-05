@@ -1,12 +1,9 @@
-# v* 태그를 올리면 macOS 러너에서 빌드해 DMG 를 GitHub Release 에 붙인다.
-#   git tag v0.2.0 && git push origin v0.2.0
-# 애드혹 서명이라 사용자는 처음 열 때 "그래도 열기" 가 필요하다. 공증하려면 Secrets 에 인증서를 넣고
-# make-dmg.sh 의 NOTARIZE 절차를 켠다.
-name: Release DMG
+# 수동 실행 전용 백업 경로. 러너엔 Developer ID 인증서가 없어 공증 안 된(경고 뜨는) DMG 가 나온다.
+# 정식 배포는 로컬에서:  ./make-dmg.sh  →  gh release create v0.2.0 build/Sokki-0.2.0.dmg
+name: Release DMG (unsigned, manual)
 
 on:
-  push:
-    tags: ["v*"]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -19,9 +16,10 @@ jobs:
       - name: Build DMG
         run: |
           chmod +x build.sh make-dmg.sh
-          VERSION="${GITHUB_REF_NAME#v}" ./make-dmg.sh
+          NOTARIZE=0 ./make-dmg.sh
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
           files: build/Sokki-*.dmg
+          draft: true
           generate_release_notes: true
