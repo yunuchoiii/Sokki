@@ -1130,7 +1130,7 @@ private struct DoneStep: View {
             }
             Text("지금 눌러서 한 번 말해 보세요.").font(.system(size: 13.5)).foregroundColor(.text2)
             WizardButton("닫기", style: .primary, wide: true) { model.finish() }
-            Text("이 안내는 설정 > 고급 & 진단에서 다시 볼 수 있습니다").font(.system(size: 11)).foregroundColor(.text4)
+            Text("이 안내는 설정 > 고급 · 진단에서 다시 볼 수 있습니다").font(.system(size: 11)).foregroundColor(.text4)
         }
         .padding(.vertical, 12).padding(.horizontal, 60)
     }
