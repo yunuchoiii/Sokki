@@ -96,6 +96,8 @@ enum PreviewRenderer {
         settings.showOnboarding = false
         write(render(PersonalPane(model: settings).padding(20).frame(width: 620).background(Color.paperSoft)),
               to: dir.appendingPathComponent("2-settings-personal-full.png"))
+        write(render(GeneralPane(model: settings).padding(20).frame(width: 620).background(Color.paperSoft)),
+              to: dir.appendingPathComponent("2-settings-general-full.png"))
 
         let strip = HStack(spacing: 24) {
             ForEach([10.0, 30.0, 44.0, 60.0, 70.0, 85.0], id: \.self) { f in
