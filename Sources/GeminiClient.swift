@@ -46,7 +46,7 @@ struct GeminiClient {
     /// 먼저 성공한 응답을 쓰고 나머지는 버린다. 무료 티어라 요청 두어 개 겹치는 비용은 없다.
     /// 2026-09-04 밤 실측: 같은 모델이 3초였다 15초였다 하고 503도 섞여서, 순차 재시도로는 20초를 넘겼다.
     private final class HedgedRequest {
-        static let hedgeDelay: TimeInterval = 4.0
+        static let hedgeDelay: TimeInterval = 2.5
 
         private let client: GeminiClient
         private let raw: String
@@ -65,7 +65,12 @@ struct GeminiClient {
             self.client = client; self.raw = raw; self.chain = chain; self.style = style; self.completion = completion
         }
 
-        func start() { fireNext() }
+        /// 첫 두 모델은 동시에 쏜다. 무료 티어에서 한 모델이 503/타임아웃일 확률이 높아서,
+        /// 3초를 기다렸다 두 번째를 쏘는 것보다 처음부터 겹치는 게 평균 1~2초 빠르다 (2026-09-04 밤 실측).
+        func start() {
+            fireNext()
+            if chain.count > 1 { fireNext() }
+        }
 
         private func fireNext() {
             lock.lock()
@@ -77,6 +82,7 @@ struct GeminiClient {
             let model = chain[index]
             if index > 0 {
                 Log.write("Gemini 헤지: \(model) 추가 요청 (\(String(format: "%.1f", Date().timeIntervalSince(startedAt)))초)")
+                Polisher.report("\(chain[0]) 응답이 늦어 \(model) 에도 요청 중…")
             }
             client.send(raw, model: model, style: style) { [self] result in
                 lock.lock()
@@ -142,7 +148,8 @@ struct GeminiClient {
 
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
-        req.timeoutInterval = 30
+        // 무료 티어가 막힐 땐 30초씩 매달려 있는 게 최악이었다(2026-09-04 22:19, 모델 둘이 30초 타임아웃).
+        req.timeoutInterval = 8
         req.setValue(key, forHTTPHeaderField: "x-goog-api-key")
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.httpBody = try? JSONSerialization.data(withJSONObject: body)

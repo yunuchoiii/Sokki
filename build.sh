@@ -39,9 +39,18 @@ TARGET="${ARCH}-apple-macos13.0"
 echo "▶ 빌드 대상: $TARGET"
 
 # --- 서명 신원 결정 --------------------------------------------------------
+# 우선순위: SOKKI_SIGN_ID 지정 > Developer ID Application(배포·공증) > 로컬 고정 인증서 > 애드혹
+# Developer ID 는 하드닝 런타임 + entitlements + 타임스탬프로 서명해야 공증이 통과한다.
+# 로컬 개발 중에 Developer ID 를 건너뛰려면 SOKKI_LOCAL_SIGN=1.
+DEV_ID="$(security find-identity -v -p codesigning 2>/dev/null | grep -o '"Developer ID Application: [^"]*"' | head -1 | tr -d '"' || true)"
+DISTRIBUTION=0
 if [[ -n "${SOKKI_SIGN_ID:-}" ]]; then
   SIGN_ID="$SOKKI_SIGN_ID"
   STABLE=1
+elif [[ -n "$DEV_ID" && "${SOKKI_LOCAL_SIGN:-0}" != "1" ]]; then
+  SIGN_ID="$DEV_ID"
+  STABLE=1
+  DISTRIBUTION=1
 elif security find-identity -v -p codesigning 2>/dev/null | grep -q "$CERT_NAME"; then
   SIGN_ID="$CERT_NAME"
   STABLE=1
@@ -73,6 +82,7 @@ swiftc \
   -framework ApplicationServices \
   -framework Security \
   -framework ServiceManagement \
+  -Xlinker -weak_framework -Xlinker FoundationModels \
   -o "$APP/Contents/MacOS/Sokki" \
   "$DIR/Sources/"*.swift
 
@@ -86,12 +96,19 @@ iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
 rm -rf "$ICONSET"
 
 # --- 서명 -----------------------------------------------------------------
-if [[ $STABLE -eq 1 ]]; then
+if [[ $DISTRIBUTION -eq 1 ]]; then
+  echo "▶ Developer ID 로 서명 중… (하드닝 런타임 · 공증 가능)"
+  codesign --force --sign "$SIGN_ID" --identifier "$BUNDLE_ID" \
+    --options runtime --timestamp \
+    --entitlements "$DIR/Sokki.entitlements" "$APP"
+  codesign --verify --strict --verbose=1 "$APP"
+elif [[ $STABLE -eq 1 ]]; then
   echo "▶ '$SIGN_ID' 인증서로 서명 중… (권한 유지됨)"
+  codesign --force --sign "$SIGN_ID" --identifier "$BUNDLE_ID" "$APP"
 else
   echo "▶ 애드혹 서명 중… (재빌드하면 접근성 권한이 풀립니다)"
+  codesign --force --sign "$SIGN_ID" --identifier "$BUNDLE_ID" "$APP"
 fi
-codesign --force --sign "$SIGN_ID" --identifier "$BUNDLE_ID" "$APP"
 
 # --- 낡은 권한 기록 정리 ---------------------------------------------------
 # tccutil reset은 이 앱 하나의 권한 기록만 지운다. 다른 앱은 건드리지 않는다.
