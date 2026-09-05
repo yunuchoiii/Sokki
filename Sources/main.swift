@@ -54,7 +54,7 @@ if let i = CommandLine.arguments.firstIndex(of: "--polish"), i + 1 < CommandLine
 
 let delegate = AppDelegate()
 app.delegate = delegate
-app.setActivationPolicy(.accessory)   // Dock에 안 뜨는 메뉴바 전용 앱
+app.setActivationPolicy(Prefs.showInDock ? .regular : .accessory)   // 설정에 따라 Dock 에 보이거나 메뉴바 전용
 app.run()
 
 // MARK: - 상태
@@ -133,6 +133,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             button.action = #selector(statusItemClicked)
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
+        installMainMenu()
         wireModelActions()
         wireSettingsActions()
         Polisher.onStatus = { [weak self] text in self?.model.polishNote = text }
@@ -449,6 +450,52 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
     }
 
+    // MARK: Dock · 메인 메뉴
+
+    /// Dock 아이콘을 누르면 메뉴바 아이콘을 누른 것처럼 팝오버를 띄운다.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        showPopover()
+        return false
+    }
+
+    /// Dock 에 보이는 동안(.regular) 앱이 활성화되면 메뉴바에 앱 메뉴가 나온다. 비어 있으면 어색하고,
+    /// 편집 메뉴가 없으면 설정 창 텍스트 필드에서 ⌘C·⌘V 가 안 먹는다.
+    private func installMainMenu() {
+        let main = NSMenu()
+
+        let appItem = NSMenuItem()
+        let appMenu = NSMenu()
+        appMenu.addItem(withTitle: "설정…", action: #selector(openSettingsWindow), keyEquivalent: ",")
+        appMenu.addItem(.separator())
+        appMenu.addItem(withTitle: "Sokki 종료", action: #selector(quitApp), keyEquivalent: "q")
+        appItem.submenu = appMenu
+        main.addItem(appItem)
+
+        let editItem = NSMenuItem()
+        let editMenu = NSMenu(title: "편집")
+        editMenu.addItem(withTitle: "실행 취소", action: Selector(("undo:")), keyEquivalent: "z")
+        editMenu.addItem(withTitle: "실행 복귀", action: Selector(("redo:")), keyEquivalent: "Z")
+        editMenu.addItem(.separator())
+        editMenu.addItem(withTitle: "잘라내기", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        editMenu.addItem(withTitle: "복사", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        editMenu.addItem(withTitle: "붙여넣기", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        editMenu.addItem(withTitle: "모두 선택", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+        editItem.submenu = editMenu
+        main.addItem(editItem)
+
+        NSApp.mainMenu = main
+    }
+
+    /// 설정의 "Dock 에 표시" 를 실행 중에 바꿨을 때. 정책이 같으면 건드리지 않는다(바꾸면 앱이 잠깐 깜빡인다).
+    private func applyDockVisibility() {
+        let wanted: NSApplication.ActivationPolicy = Prefs.showInDock ? .regular : .accessory
+        guard NSApp.activationPolicy() != wanted else { return }
+        NSApp.setActivationPolicy(wanted)
+        Log.write("Dock 표시: \(Prefs.showInDock)")
+        // 설정 창이 열려 있는 상태에서 정책을 바꾸면 창이 뒤로 밀린다. 다시 앞으로 가져온다.
+        if settings.isVisible { NSApp.activate(ignoringOtherApps: true) }
+    }
+
     // MARK: 팝오버
 
     @objc private func statusItemClicked() {
@@ -509,6 +556,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     /// 설정 창에서 값이 바뀌었을 때.
     private func prefsChanged() {
         if Prefs.currentHotKey.title != model.hotKeyTitle { registerHotKey() }
+        applyDockVisibility()
         if Prefs.autoPaste && !Paster.isTrusted {
             Paster.requestTrust()
             startTrustWatcher()
