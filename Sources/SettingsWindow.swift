@@ -3,8 +3,8 @@ import AppKit
 import ServiceManagement
 import Carbon.HIToolbox
 
-// 시안 2a "설정 창 — 일반", 2b "설정 창 — 인식 & 정리". 창 폭 620, 왼쪽 사이드바.
-// 단축키 · 고급 & 진단 탭은 시안에 없어서 기존 메뉴 항목을 같은 톤으로 옮겼다.
+// 시안 2a "설정 창 — 일반", 2b "설정 창 — 음성인식 · AI". 창 폭 620, 왼쪽 사이드바.
+// 단축키 · 고급 · 진단 탭은 시안에 없어서 기존 메뉴 항목을 같은 톤으로 옮겼다.
 
 extension Notification.Name {
     /// 설정 창에서 값이 바뀌면 AppDelegate 가 단축키 재등록·팝오버 갱신을 한다.
@@ -23,9 +23,9 @@ final class SettingsModel: ObservableObject {
             switch self {
             case .general:     return "일반"
             case .personal:    return "개인화"
-            case .recognition: return "인식 & 정리"
+            case .recognition: return "음성인식 · AI"
             case .hotkey:      return "단축키"
-            case .advanced:    return "고급 & 진단"
+            case .advanced:    return "고급 · 진단"
             }
         }
         var symbol: String {
@@ -304,7 +304,7 @@ struct PersonalPane: View {
     }
 }
 
-// MARK: 2b 인식 & 정리
+// MARK: 2b 음성인식 · AI
 
 struct RecognitionPane: View {
     @ObservedObject var model: SettingsModel
@@ -554,7 +554,7 @@ struct HotKeyPane: View {
     }
 }
 
-// MARK: 고급 & 진단
+// MARK: 고급 · 진단
 
 struct AdvancedPane: View {
     @ObservedObject var model: SettingsModel
