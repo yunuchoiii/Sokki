@@ -44,3 +44,5 @@ git 규칙(브랜치·커밋·PR)은 전역 `git-workflow` 스킬을 따른다. 
 - `FoundationModels` 는 `-Xlinker -weak_framework` 로 약하게 링크한다. 타깃은 macOS 13 유지.
 - 번들 ID 는 `com.sokki.dictation`. 바꾸면 TCC 권한·UserDefaults 가 초기화된다(Sokgi→Sokki 때 이전 코드 있음).
 - 미리보기용 가짜 키는 구글 키 형식(`AIza…` 39자)을 피한다. GitHub 시크릿 스캐너가 잡는다.
+- `make-dmg.sh` 는 Finder 를 AppleScript 로 조작해 창 크기·배경·아이콘 위치를 `.DS_Store` 에 심는다. 터미널에 Finder 자동화
+  권한이 없으면 거기서 죽는다. 창 크기는 Finder 가 닫을 때 기록하므로 닫았다 다시 연 뒤 닫기 직전에 지정해야 남는다(안 그러면 920×464).
