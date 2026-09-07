@@ -18,7 +18,8 @@ git 규칙(브랜치·커밋·PR)은 전역 `git-workflow` 스킬을 따른다. 
   반드시 실제로 돌려 본다. 한 번 이걸 안 해서 사용자가 "한 번도 성공한 적 없다"를 겪었다.
 - 로그: `~/Library/Logs/Sokki.log`. "자동 모드: ○○ 채택 (n초)" 줄로 어느 모델이 이겼는지 본다.
 - 배포: Info.plist 버전 올림 → `./make-dmg.sh` → dev→main PR(사람이 머지) → **머지 후** 태그 →
-  `gh release create vX.Y.Z build/Sokki-X.Y.Z.dmg build/Sokki.dmg`(고정 이름은 README 바로 받기 링크용). 태그를 머지 전에 찍으면 첫 커밋을 가리킨다(v0.1.0 에서 실수).
+  `gh release create vX.Y.Z build/Sokki-X.Y.Z.dmg build/Sokki.dmg`(고정 이름은 README 바로 받기 링크용) →
+  `gh workflow run pages.yml -R yunuchoiii/Sokki-Pages`(랜딩 페이지가 릴리스 노트를 빌드 때 가져오므로 다시 빌드). 태그를 머지 전에 찍으면 첫 커밋을 가리킨다(v0.1.0 에서 실수).
   GitHub Actions 워크플로는 인증서가 없어 공증이 안 되므로 수동 실행 전용.
 
 ## 구조에서 안 보이는 결정들
