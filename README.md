@@ -2,7 +2,7 @@
 
 단축키를 누르고 말하면, 받아 적고, AI 가 군말을 정리해서, 커서가 있는 자리에 붙여 넣어 주는 macOS 메뉴바 앱입니다.
 
-**[⬇ 최신 버전 다운로드 (DMG)](https://github.com/yunuchoiii/Sokki/releases/latest)** · macOS 13 이상 · 무료
+**[⬇ 최신 버전 다운로드 (DMG)](https://github.com/yunuchoiii/Sokki/releases/latest/download/Sokki.dmg)** · macOS 13 이상 · 무료 · [바뀐 점 보기](https://github.com/yunuchoiii/Sokki/releases)
 
 ```
 단축키 → 말하기 → 단축키 → AI 정리 → 클립보드 복사 (또는 커서 위치에 자동 붙여넣기)
@@ -114,7 +114,8 @@ tail -f ~/Library/Logs/Sokki.log                                             # "
 
 Developer ID Application 인증서와 `notarytool` 프로필 `sokki`(`xcrun notarytool store-credentials sokki …`)가
 있는 맥에서만 공증됩니다. 순서: Info.plist 버전 올림 → `make-dmg.sh` → dev→main PR → 머지 **후** 태그 →
-`gh release create vX.Y.Z build/Sokki-X.Y.Z.dmg`. GitHub Actions 워크플로는 인증서가 없어 공증이 안 되므로 수동 실행 전용입니다.
+`gh release create vX.Y.Z build/Sokki-X.Y.Z.dmg build/Sokki.dmg`. 고정 이름 `Sokki.dmg` 를 같이 올려야 README 의
+바로 받기 링크(`releases/latest/download/Sokki.dmg`)가 새 버전을 가리킵니다. GitHub Actions 워크플로는 인증서가 없어 공증이 안 되므로 수동 실행 전용입니다.
 
 ## 구조
 
