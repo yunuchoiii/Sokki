@@ -13,6 +13,12 @@ if let i = CommandLine.arguments.firstIndex(of: "--render-previews"), i + 1 < Co
     exit(0)
 }
 
+// 빌드용: DMG 창 배경 PNG (make-dmg.sh 가 부른다)
+if let i = CommandLine.arguments.firstIndex(of: "--render-dmg-background"), i + 1 < CommandLine.arguments.count {
+    PreviewRenderer.renderDMGBackground(to: CommandLine.arguments[i + 1])
+    exit(0)
+}
+
 // 빌드용: 앱 아이콘 iconset PNG 를 만든다. build.sh 가 iconutil 로 .icns 로 묶는다.
 if let i = CommandLine.arguments.firstIndex(of: "--render-icon"), i + 1 < CommandLine.arguments.count {
     let dir = URL(fileURLWithPath: CommandLine.arguments[i + 1])

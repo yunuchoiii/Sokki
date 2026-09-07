@@ -150,6 +150,14 @@ enum PreviewRenderer {
         print("미리보기 저장: \(dir.path)")
     }
 
+    /// DMG 창 배경(660×400pt, 2x). make-dmg.sh 가 Finder 아이콘을 (165,190)·(495,190) 에 놓는다 — 화살표 위치와 맞춘다.
+    static func renderDMGBackground(to path: String) {
+        let url = URL(fileURLWithPath: path)
+        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        write(render(DMGBackground()), to: url)
+        print("DMG 배경 저장: \(url.path)")
+    }
+
     private static func render<V: View>(_ view: V, scale: CGFloat = 2, dark: Bool = false) -> NSImage {
         let host = NSHostingView(rootView: view)
         let appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
@@ -180,5 +188,45 @@ enum PreviewRenderer {
         }
         try? png.write(to: url)
         print("  \(url.lastPathComponent)  \(Int(image.size.width))×\(Int(image.size.height))")
+    }
+}
+
+
+/// DMG 를 열었을 때 보이는 안내 배경. 왼쪽 자리에 Sokki, 오른쪽 자리에 Applications 아이콘이 놓인다.
+struct DMGBackground: View {
+    static let size = CGSize(width: 660, height: 400)
+    static let leftCenter = CGPoint(x: 165, y: 190)
+    static let rightCenter = CGPoint(x: 495, y: 190)
+
+    var body: some View {
+        ZStack {
+            Color(nsColor: Theme.paperSoft)
+
+            VStack(spacing: 6) {
+                HStack(spacing: 8) {
+                    LogoMark(size: 22, wave: .inkFixed, dot: .coral)
+                    Text("Sokki").font(.system(size: 17, weight: .bold)).foregroundColor(.inkFixed)
+                }
+                Text("Sokki 를 Applications 폴더로 끌어 넣으세요")
+                    .font(.system(size: 15, weight: .semibold)).foregroundColor(Color(nsColor: Theme.text2))
+            }
+            .position(x: Self.size.width / 2, y: 62)
+
+            // 두 아이콘 사이 화살표 (아이콘 128pt 기준 양쪽 여백을 둔다)
+            Path { p in
+                let y = Self.leftCenter.y
+                p.move(to: CGPoint(x: Self.leftCenter.x + 96, y: y))
+                p.addLine(to: CGPoint(x: Self.rightCenter.x - 96, y: y))
+            }
+            .stroke(Color(nsColor: Theme.lineStrong), style: StrokeStyle(lineWidth: 4, lineCap: .round))
+            Path { p in
+                let tip = CGPoint(x: Self.rightCenter.x - 96, y: Self.leftCenter.y)
+                p.move(to: CGPoint(x: tip.x - 16, y: tip.y - 14))
+                p.addLine(to: tip)
+                p.addLine(to: CGPoint(x: tip.x - 16, y: tip.y + 14))
+            }
+            .stroke(Color(nsColor: Theme.lineStrong), style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
+        }
+        .frame(width: Self.size.width, height: Self.size.height)
     }
 }
