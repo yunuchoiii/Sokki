@@ -82,4 +82,7 @@ else
   echo "ℹ️  공증 생략 (Developer ID 서명 + notarytool 프로필 'sokki' 가 있어야 합니다)"
 fi
 
+# README 의 바로 받기 링크(releases/latest/download/Sokki.dmg)용 고정 이름 사본. 공증·스테이플이 끝난 뒤 복사해야 한다.
+cp "$DMG" "$DIR/build/Sokki.dmg"
 echo "✅ $DMG ($(du -h "$DMG" | cut -f1))"
+echo "   릴리스: gh release create v$VERSION \"$DMG\" \"$DIR/build/Sokki.dmg\""
