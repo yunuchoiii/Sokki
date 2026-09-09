@@ -306,6 +306,12 @@ enum Prefs {
         set { d.set(newValue, forKey: "showInDock") }
     }
 
+    /// 녹음 중에 재생 중인 다른 소리를 낮춘다. 에어팟은 macOS 가 알아서 하므로 내장 스피커 등에만 적용.
+    static var duckMediaWhileRecording: Bool {
+        get { d.object(forKey: "duckMediaWhileRecording") as? Bool ?? true }
+        set { d.set(newValue, forKey: "duckMediaWhileRecording") }
+    }
+
     /// 실패했을 때 시스템 알림창까지 띄운다. 팝오버가 오류를 보여주므로 기본은 끔.
     static var showErrorAlerts: Bool {
         get { d.object(forKey: "showErrorAlerts") as? Bool ?? false }

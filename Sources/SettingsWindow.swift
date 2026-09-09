@@ -55,6 +55,7 @@ final class SettingsModel: ObservableObject {
     @Published var restoreClipboard = Prefs.restoreClipboard  { didSet { Prefs.restoreClipboard = restoreClipboard; changed() } }
     @Published var showErrorAlerts = Prefs.showErrorAlerts    { didSet { Prefs.showErrorAlerts = showErrorAlerts; changed() } }
     @Published var showInDock = Prefs.showInDock              { didSet { Prefs.showInDock = showInDock; changed() } }
+    @Published var duckMedia = Prefs.duckMediaWhileRecording  { didSet { Prefs.duckMediaWhileRecording = duckMedia; changed() } }
     @Published var forceServer = Prefs.forceServerRecognition { didSet { Prefs.forceServerRecognition = forceServer; changed() } }
     @Published var polishEnabled = Prefs.polishEnabled        { didSet { Prefs.polishEnabled = polishEnabled; changed() } }
     @Published var backend = Prefs.backend                    { didSet { Prefs.backend = backend; changed() } }
@@ -241,6 +242,10 @@ struct GeneralPane: View {
                         }
                         InkToggle(isOn: $model.autoStop)
                     }
+                }
+                SettingsRow(title: "녹음 중 다른 소리 줄이기",
+                            subtitle: "재생 중인 음악·영상 소리를 녹음이 끝날 때까지 낮춥니다. 에어팟은 맥이 알아서 줄입니다.") {
+                    InkToggle(isOn: $model.duckMedia)
                 }
                 SettingsRow(title: "인식 언어", subtitle: nil, last: true) {
                     PopupLabel(title: Prefs.locales.first { $0.id == model.localeID }?.title ?? model.localeID,
