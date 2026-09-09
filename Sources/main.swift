@@ -452,7 +452,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             NSSound(named: "Tink")?.play()
             model.phase = .done(record, Prefs.copyToClipboard ? .copied : .viewing)
             setState(.idle, message: Prefs.copyToClipboard ? "\(message) — ⌘V로 붙여넣으세요" : message)
-            showPopover()
+            showResultOrClose()
             return
         }
 
@@ -469,8 +469,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             Paster.paste(text, restoreClipboard: Prefs.restoreClipboard)
             self.model.phase = .done(record, .pasted)
             self.setState(.idle, message: message)
-            // 붙여넣기와 클립보드 복원이 끝난 뒤에 팝오버를 띄운다.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { self.showPopover() }
+            // 붙여넣기와 클립보드 복원이 끝난 뒤에 팝오버를 띄운다(설정이 켜져 있을 때만).
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { self.showResultOrClose() }
+        }
+    }
+
+    /// 정리가 끝난 뒤. 설정이 꺼져 있으면 정리 중 화면을 닫고 조용히 끝낸다 — 결과는 메뉴바 아이콘을 누르면 본다.
+    private func showResultOrClose() {
+        if Prefs.showResultPopover {
+            showPopover()
+        } else if popover.isShown {
+            popover.performClose(nil)
         }
     }
 

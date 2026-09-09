@@ -54,6 +54,7 @@ final class SettingsModel: ObservableObject {
     @Published var autoPaste = Prefs.autoPaste                { didSet { Prefs.autoPaste = autoPaste; changed() } }
     @Published var restoreClipboard = Prefs.restoreClipboard  { didSet { Prefs.restoreClipboard = restoreClipboard; changed() } }
     @Published var showErrorAlerts = Prefs.showErrorAlerts    { didSet { Prefs.showErrorAlerts = showErrorAlerts; changed() } }
+    @Published var showResultPopover = Prefs.showResultPopover { didSet { Prefs.showResultPopover = showResultPopover; changed() } }
     @Published var showInDock = Prefs.showInDock              { didSet { Prefs.showInDock = showInDock; changed() } }
     @Published var duckMedia = Prefs.duckMediaWhileRecording  { didSet { Prefs.duckMediaWhileRecording = duckMedia; changed() } }
     @Published var forceServer = Prefs.forceServerRecognition { didSet { Prefs.forceServerRecognition = forceServer; changed() } }
@@ -270,6 +271,10 @@ struct GeneralPane: View {
                     SettingsRow(title: "붙여넣기 후 클립보드 복원", subtitle: "자동 붙여넣기는 클립보드를 잠깐 빌려 씁니다. 켜면 붙여넣은 뒤 전에 복사해 둔 내용을 되돌려 놓고, 끄면 요약문을 클립보드에 남깁니다.") {
                         InkToggle(isOn: $model.restoreClipboard)
                     }
+                }
+                SettingsRow(title: "정리가 끝나면 결과 창 띄우기",
+                            subtitle: "끄면 메뉴바 아이콘을 눌러야 결과를 봅니다. 복사·붙여넣기는 그대로 됩니다. 녹음 중·정리 중 화면은 항상 뜹니다.") {
+                    InkToggle(isOn: $model.showResultPopover)
                 }
                 SettingsRow(title: "실패 시 시스템 알림 표시", subtitle: nil, last: true) {
                     InkToggle(isOn: $model.showErrorAlerts)
