@@ -56,7 +56,6 @@ final class SettingsModel: ObservableObject {
     @Published var showErrorAlerts = Prefs.showErrorAlerts    { didSet { Prefs.showErrorAlerts = showErrorAlerts; changed() } }
     @Published var showInDock = Prefs.showInDock              { didSet { Prefs.showInDock = showInDock; changed() } }
     @Published var duckMedia = Prefs.duckMediaWhileRecording  { didSet { Prefs.duckMediaWhileRecording = duckMedia; changed() } }
-    @Published var pauseMedia = Prefs.pauseMediaWhenVolumeLocked { didSet { Prefs.pauseMediaWhenVolumeLocked = pauseMedia; changed() } }
     @Published var forceServer = Prefs.forceServerRecognition { didSet { Prefs.forceServerRecognition = forceServer; changed() } }
     @Published var polishEnabled = Prefs.polishEnabled        { didSet { Prefs.polishEnabled = polishEnabled; changed() } }
     @Published var backend = Prefs.backend                    { didSet { Prefs.backend = backend; changed() } }
@@ -247,12 +246,6 @@ struct GeneralPane: View {
                 SettingsRow(title: "녹음 중 다른 소리 줄이기",
                             subtitle: "재생 중인 음악·영상 소리를 녹음이 끝날 때까지 낮춥니다. 에어팟은 맥이 알아서 줄입니다.") {
                     InkToggle(isOn: $model.duckMedia)
-                }
-                if model.duckMedia {
-                    SettingsRow(title: "볼륨 조절이 안 되는 출력은 재생을 잠시 멈춤",
-                                subtitle: "HDMI 모니터 스피커처럼 볼륨을 못 만지는 출력에서는 ⏯ 키를 눌러 멈췄다가 끝나면 다시 재생합니다.") {
-                        InkToggle(isOn: $model.pauseMedia)
-                    }
                 }
                 SettingsRow(title: "인식 언어", subtitle: nil, last: true) {
                     PopupLabel(title: Prefs.locales.first { $0.id == model.localeID }?.title ?? model.localeID,

@@ -312,12 +312,6 @@ enum Prefs {
         set { d.set(newValue, forKey: "duckMediaWhileRecording") }
     }
 
-    /// 볼륨 조절이 안 되는 출력(HDMI 모니터 등)에서는 재생/일시정지 키로 재생을 멈춘다.
-    static var pauseMediaWhenVolumeLocked: Bool {
-        get { d.object(forKey: "pauseMediaWhenVolumeLocked") as? Bool ?? true }
-        set { d.set(newValue, forKey: "pauseMediaWhenVolumeLocked") }
-    }
-
     /// 실패했을 때 시스템 알림창까지 띄운다. 팝오버가 오류를 보여주므로 기본은 끔.
     static var showErrorAlerts: Bool {
         get { d.object(forKey: "showErrorAlerts") as? Bool ?? false }

@@ -284,7 +284,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 self?.model.pushLevel(level)
             })
             recordingStartedAt = Date()
-            if Prefs.duckMediaWhileRecording { AudioDucker.duck(pauseWhenLocked: Prefs.pauseMediaWhenVolumeLocked) }
+            if Prefs.duckMediaWhileRecording { AudioDucker.duck() }
             startRecordingTimer()
             model.phase = .recording
             setState(.recording, message: "듣는 중…")
