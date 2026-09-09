@@ -95,6 +95,9 @@ final class SpeechRecorder {
         usingOnDevice = rec.supportsOnDeviceRecognition && !Prefs.forceServerRecognition
         req.requiresOnDeviceRecognition = usingOnDevice
         req.addsPunctuation = true
+        // 설정한 분야 용어를 인식기에 미리 알려 준다. "팝오버"가 "파악 오버"로 들리는 걸 줄인다.
+        let vocabulary = Glossary.vocabulary()
+        if !vocabulary.isEmpty { req.contextualStrings = vocabulary }
         request = req
         Log.write("인식 방식: \(usingOnDevice ? "온디바이스" : "애플 서버")")
 

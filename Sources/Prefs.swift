@@ -306,6 +306,13 @@ enum Prefs {
         set { d.set(newValue, forKey: "showInDock") }
     }
 
+    /// 정리가 끝났을 때 결과 팝오버를 자동으로 띄울지. 계속 떠 있으면 거슬린다는 피드백(2026-09-09)으로 기본은 끔.
+    /// 녹음 중·정리 중 화면은 이 설정과 무관하게 뜬다.
+    static var showResultPopover: Bool {
+        get { d.object(forKey: "showResultPopover") as? Bool ?? false }
+        set { d.set(newValue, forKey: "showResultPopover") }
+    }
+
     /// 녹음 중에 재생 중인 다른 소리를 낮춘다. 에어팟은 macOS 가 알아서 하므로 내장 스피커 등에만 적용.
     static var duckMediaWhileRecording: Bool {
         get { d.object(forKey: "duckMediaWhileRecording") as? Bool ?? true }
@@ -439,7 +446,10 @@ enum UsageContext: String, CaseIterable, Identifiable {
             프론트 앤드, 프론트느 → 프론트엔드
             깃 헙, 깃 허브 → GitHub
             풀 리퀘스트, 피알 → PR
-            커밋, 브랜치, 머지, 클론, 푸시, 빌드, 배포, 리팩터링, 컴포넌트, 훅, 상태 관리
+            파악 오버, 파보, 밥 오버, 팝 오버, 팝업 오버 → 팝오버
+            툴 팁 → 툴팁
+            드롭 다운 → 드롭다운
+            커밋, 브랜치, 머지, 클론, 푸시, 빌드, 배포, 리팩터링, 컴포넌트, 훅, 상태 관리, 모달, 토글, 사이드바, 스크롤
             """
         case .devBackend: return """
             리듬이, 리드 미 → README
@@ -464,7 +474,9 @@ enum UsageContext: String, CaseIterable, Identifiable {
             """
         case .design: return """
             피그마 → Figma
-            시안, 와이어프레임, 프로토타입, 컴포넌트, 디자인 시스템, 토큰, 여백, 정렬
+            파악 오버, 파보, 밥 오버, 팝 오버 → 팝오버
+            툴 팁 → 툴팁
+            시안, 와이어프레임, 프로토타입, 컴포넌트, 디자인 시스템, 토큰, 여백, 정렬, 모달, 토글, 아이콘
             유엑스 → UX
             유아이 → UI
             """
@@ -520,6 +532,30 @@ enum Glossary {
             result.append(Rule(variants: variants, replacement: right))
         }
         return result
+    }
+
+    /// 음성 인식에 미리 알려 줄 단어들(SFSpeechRecognitionRequest.contextualStrings). 올바른 표기와 단독 단어만 모은다.
+    /// "파악 오버"처럼 엉뚱하게 들리는 것보다 "팝오버"로 바로 인식되는 편이 낫다.
+    static func vocabulary() -> [String] {
+        var lines: [String] = []
+        for c in UsageContext.allCases where Prefs.usageContexts.contains(c) {
+            lines += c.glossary.split(separator: "\n").map(String.init)
+        }
+        lines += Prefs.glossary.split(separator: "\n").map(String.init)
+
+        var words: [String] = []
+        for line in lines {
+            let parts = line.components(separatedBy: "→")
+            if parts.count == 2 {
+                var right = parts[1].trimmingCharacters(in: .whitespaces)
+                if let paren = right.range(of: "(") { right = String(right[..<paren.lowerBound]).trimmingCharacters(in: .whitespaces) }
+                if !right.isEmpty { words.append(right) }
+            } else {
+                words += line.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+            }
+        }
+        var seen = Set<String>()
+        return Array(words.filter { seen.insert($0).inserted }.prefix(150))
     }
 
     /// 긴 변형부터 바꿔서 "리 액트 네이티브"가 "React 네이티브"로 반쯤 바뀌는 일을 막는다.
