@@ -274,6 +274,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             model.screen = .main
             model.rawExpanded = false
             lastSpeechAt = nil
+            AudioDucker.prepare()
             try recorder.start(localeID: Prefs.localeID, onPartial: { [weak self] text in
                 guard let self else { return }
                 if text != self.partialText { self.lastSpeechAt = Date() }
@@ -283,7 +284,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 self?.model.pushLevel(level)
             })
             recordingStartedAt = Date()
-            if Prefs.duckMediaWhileRecording { AudioDucker.duck() }
+            if Prefs.duckMediaWhileRecording { AudioDucker.duck(pauseWhenLocked: Prefs.pauseMediaWhenVolumeLocked) }
             startRecordingTimer()
             model.phase = .recording
             setState(.recording, message: "듣는 중…")
