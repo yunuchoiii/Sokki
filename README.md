@@ -114,7 +114,8 @@ tail -f ~/Library/Logs/Sokki.log                                             # "
 
 Developer ID Application 인증서와 `notarytool` 프로필 `sokki`(`xcrun notarytool store-credentials sokki …`)가
 있는 맥에서만 공증됩니다. 순서: Info.plist 버전 올림 → `make-dmg.sh` → dev→main PR → 머지 **후** 태그 →
-`gh release create vX.Y.Z build/Sokki-X.Y.Z.dmg build/Sokki.dmg`. 고정 이름 `Sokki.dmg` 를 같이 올려야 README 의
+`gh release create vX.Y.Z build/Sokki-X.Y.Z.dmg build/Sokki.dmg` → `gh workflow run pages.yml -R yunuchoiii/Sokki-Pages`(랜딩 페이지 재빌드).
+고정 이름 `Sokki.dmg` 를 같이 올려야 README 의
 바로 받기 링크(`releases/latest/download/Sokki.dmg`)가 새 버전을 가리킵니다. GitHub Actions 워크플로는 인증서가 없어 공증이 안 되므로 수동 실행 전용입니다.
 
 ## 구조
