@@ -244,7 +244,7 @@ struct GeneralPane: View {
                     }
                 }
                 SettingsRow(title: "녹음 중 다른 소리 줄이기",
-                            subtitle: "재생 중인 음악·영상 소리를 녹음이 끝날 때까지 낮춥니다. 에어팟처럼 맥이 알아서 줄이는 장치에는 적용하지 않습니다.") {
+                            subtitle: "재생 중인 음악·영상 소리를 녹음이 끝날 때까지 낮춥니다. 에어팟은 맥이 알아서 줄입니다.") {
                     InkToggle(isOn: $model.duckMedia)
                 }
                 SettingsRow(title: "인식 언어", subtitle: nil, last: true) {
