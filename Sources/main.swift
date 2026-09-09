@@ -226,6 +226,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        AudioDucker.restore()
         HotKey.unregister()
         ModifierHotKey.unregister()
         recorder.cancel()
@@ -282,6 +283,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 self?.model.pushLevel(level)
             })
             recordingStartedAt = Date()
+            if Prefs.duckMediaWhileRecording { AudioDucker.duck() }
             startRecordingTimer()
             model.phase = .recording
             setState(.recording, message: "듣는 중…")
@@ -320,6 +322,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private func cancelRecording() {
         stopRecordingTimer()
         recorder.cancel()
+        AudioDucker.restore()
         recordingStartedAt = nil
         model.phase = .idle
         setState(.idle, message: "취소됨")
@@ -334,6 +337,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         model.phase = .polishing
         setState(.polishing, message: "정리 중…")
 
+        AudioDucker.restore()
         recorder.stop { [weak self] transcript, recError in
             guard let self else { return }
             let raw = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
