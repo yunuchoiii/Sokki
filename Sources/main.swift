@@ -754,7 +754,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
     }
 
-    /// 메뉴바: 대기는 파형 아이콘만, 녹음 중엔 코랄 점 + 타이머, 정리 중엔 "…".
+    /// 메뉴바: 대기는 파형 아이콘만, 녹음 중엔 코랄 점 + 타이머, 정리 중엔 앰버 점.
     private func updateStatusTitle() {
         DispatchQueue.main.async {
             guard let button = self.statusItem.button else { return }
@@ -765,7 +765,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 self.renderRecordingTitle()
             case .polishing:
                 button.attributedTitle = NSAttributedString(
-                    string: " …", attributes: [.font: NSFont.systemFont(ofSize: 12, weight: .semibold)])
+                    string: " ●", attributes: [.font: NSFont.systemFont(ofSize: 9, weight: .bold),
+                                               .foregroundColor: Theme.amber,
+                                               .baselineOffset: 1])
             case .error:
                 button.attributedTitle = NSAttributedString(
                     string: " !", attributes: [.font: NSFont.systemFont(ofSize: 12, weight: .bold),
