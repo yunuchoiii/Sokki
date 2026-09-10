@@ -19,6 +19,11 @@ STAGE="$DIR/build/dmg-stage"
 "$DIR/build.sh"
 
 echo "▶ DMG 구성 중…"
+# 이전에 열어 둔 Sokki 볼륨이 남아 있으면 새 이미지가 "Sokki 1" 로 붙고 Finder 배치가 엉뚱한 볼륨을 잡아 조용히 실패한다.
+if [[ -d /Volumes/Sokki ]]; then
+  echo "▶ 남아 있던 /Volumes/Sokki 를 먼저 내립니다"
+  hdiutil detach /Volumes/Sokki -quiet || hdiutil detach /Volumes/Sokki -force -quiet || true
+fi
 rm -rf "$STAGE" "$DMG" "$RW"
 mkdir -p "$STAGE"
 cp -R "$APP" "$STAGE/"
