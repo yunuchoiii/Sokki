@@ -150,6 +150,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
         phaseObserver = model.$phase.receive(on: DispatchQueue.main).sink { [weak self] phase in
             self?.updatePopoverBackground(for: phase)
+            self?.applyPopoverStickiness(for: phase)
         }
         NotificationCenter.default.addObserver(forName: .sokkiPrefsChanged, object: nil, queue: .main) { [weak self] _ in
             self?.prefsChanged()
@@ -576,12 +577,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     func popoverDidShow(_ notification: Notification) {
         installPopoverBackground()
-        outsideClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
-            self?.popover.performClose(nil)
-        }
+        applyPopoverStickiness(for: model.phase)
     }
 
     func popoverDidClose(_ notification: Notification) {
+        removeOutsideClickMonitor()
+    }
+
+    /// 녹음 중·정리 중에는 팝오버를 붙박이로 둔다. 다른 데를 눌러도, 데스크탑을 옮겨도, 전체 화면 앱 위에서도 남는다.
+    /// 그 밖의 상태(대기·완료·오류)는 평소 팝오버처럼 밖을 누르면 닫힌다.
+    private func applyPopoverStickiness(for phase: AppModel.Phase) {
+        let sticky: Bool
+        switch phase {
+        case .recording, .polishing: sticky = true
+        default: sticky = false
+        }
+        popover.behavior = sticky ? .applicationDefined : .transient
+        if let window = popover.contentViewController?.view.window {
+            window.collectionBehavior = sticky ? [.canJoinAllSpaces, .fullScreenAuxiliary] : []
+        }
+        guard popover.isShown else { return }
+        if sticky {
+            removeOutsideClickMonitor()
+        } else if outsideClickMonitor == nil {
+            outsideClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
+                self?.popover.performClose(nil)
+            }
+        }
+    }
+
+    private func removeOutsideClickMonitor() {
         if let m = outsideClickMonitor { NSEvent.removeMonitor(m) }
         outsideClickMonitor = nil
     }
