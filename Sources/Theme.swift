@@ -17,6 +17,7 @@ enum Theme {
     static let ink        = NSColor(hex: 0x16181d)   // 잉크 블랙
     static let inkDeep    = NSColor(hex: 0x101216)
     static let coral      = NSColor(hex: 0xe0604a)   // 레코딩 코랄
+    static let amber      = NSColor(hex: 0xe0a24a)   // 정리 중 (코랄과 같은 계열)
     static let coralDeep  = NSColor(hex: 0xc2452f)
     static let coralLight = NSColor(hex: 0xff6b52)
 
