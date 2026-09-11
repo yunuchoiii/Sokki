@@ -13,6 +13,24 @@ if let i = CommandLine.arguments.firstIndex(of: "--render-previews"), i + 1 < Co
     exit(0)
 }
 
+// 진단용: 업데이트 확인만 돌려 본다. 버전을 주면 그 버전이 설치된 것처럼 비교한다.
+if let i = CommandLine.arguments.firstIndex(of: "--check-update") {
+    let fake = i + 1 < CommandLine.arguments.count ? CommandLine.arguments[i + 1] : UpdateChecker.currentVersion
+    // 콜백이 메인 큐로 오므로 세마포어로 막으면 교착된다. 런루프를 돌리며 기다린다.
+    var finished = false
+    UpdateChecker.check(current: fake) { result in
+        switch result {
+        case .success(let r?): print("새 버전: \(r.version) (\(r.tag)) — 현재 \(fake)\n\(r.notes)")
+        case .success(nil):    print("최신 버전 (현재 \(fake))")
+        case .failure(let e):  print("실패: \(e.localizedDescription)")
+        }
+        finished = true
+    }
+    let deadline = Date().addingTimeInterval(30)
+    while !finished && Date() < deadline { RunLoop.main.run(until: Date().addingTimeInterval(0.1)) }
+    exit(0)
+}
+
 // 빌드용: DMG 창 배경 PNG (make-dmg.sh 가 부른다)
 if let i = CommandLine.arguments.firstIndex(of: "--render-dmg-background"), i + 1 < CommandLine.arguments.count {
     PreviewRenderer.renderDMGBackground(to: CommandLine.arguments[i + 1])
@@ -184,6 +202,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
 
         requestRecorderPermissions()
+
+        // 새 버전 확인은 실행 직후 소란스럽지 않게 조금 뒤에. 처음 실행(설치 안내 중)엔 하지 않는다.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 8) { UpdateChecker.checkAutomaticallyIfDue() }
 
         // 기본값은 클립보드 복사이므로 권한을 요구하지 않는다.
         // 자동 붙여넣기를 켠 사용자에게만 안내한다.
@@ -641,6 +662,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         settings.model.actions.openDictationSettings = { [weak self] in self?.openDictationSettings() }
         settings.model.actions.openAccessibility = { [weak self] in self?.openAccessibility() }
         settings.model.actions.reopenOnboarding = { [weak self] in self?.onboarding.show() }
+        settings.model.actions.checkForUpdates = { UpdateChecker.checkManually() }
     }
 
     /// 상태 아이콘 우클릭 · 팝오버의 "설정…" 에서 기존 설정 메뉴를 띄운다.
