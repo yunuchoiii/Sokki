@@ -38,7 +38,8 @@ final class SpeechRecorder {
     private var didFinish = false
     private var earlyFinal = false
     private var safetyTimer: DispatchWorkItem?
-    private var bufferCount = 0
+    /// 이번 녹음에서 마이크가 넘긴 버퍼 수. 0 이면 말이 없는 게 아니라 마이크가 안 잡힌 것.
+    private(set) var bufferCount = 0
     private var configObserver: NSObjectProtocol?
     private var levelHandler: ((Float) -> Void)?
 
