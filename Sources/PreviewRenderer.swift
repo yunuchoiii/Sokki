@@ -98,6 +98,8 @@ enum PreviewRenderer {
               to: dir.appendingPathComponent("2-settings-personal-full.png"))
         write(render(GeneralPane(model: settings).padding(20).frame(width: 620).background(Color.paperSoft)),
               to: dir.appendingPathComponent("2-settings-general-full.png"))
+        write(render(AdvancedPane(model: settings).padding(20).frame(width: 620).background(Color.paperSoft)),
+              to: dir.appendingPathComponent("2-settings-advanced-full.png"))
 
         // 설치 안내 (시안 Sokki Onboarding.dc.html 의 아트보드 이름을 그대로 쓴다)
         func wizard(_ name: String, dark: Bool = false, apple: AppleClient.Status = .available, _ setup: (OnboardingModel) -> Void) {
