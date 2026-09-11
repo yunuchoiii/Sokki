@@ -306,6 +306,25 @@ enum Prefs {
         set { d.set(newValue, forKey: "showInDock") }
     }
 
+    // MARK: 업데이트 확인
+
+    /// 실행할 때 하루 한 번 GitHub 릴리스를 확인한다.
+    static var autoCheckUpdates: Bool {
+        get { d.object(forKey: "autoCheckUpdates") as? Bool ?? true }
+        set { d.set(newValue, forKey: "autoCheckUpdates") }
+    }
+
+    static var lastUpdateCheck: Date? {
+        get { d.object(forKey: "lastUpdateCheck") as? Date }
+        set { d.set(newValue, forKey: "lastUpdateCheck") }
+    }
+
+    /// "나중에"를 누른 버전. 같은 버전은 자동 확인에서 다시 묻지 않는다.
+    static var skippedUpdateVersion: String? {
+        get { d.string(forKey: "skippedUpdateVersion") }
+        set { d.set(newValue, forKey: "skippedUpdateVersion") }
+    }
+
     /// 정리가 끝났을 때 결과 팝오버를 자동으로 띄울지. 계속 떠 있으면 거슬린다는 피드백(2026-09-09)으로 기본은 끔.
     /// 녹음 중·정리 중 화면은 이 설정과 무관하게 뜬다.
     static var showResultPopover: Bool {

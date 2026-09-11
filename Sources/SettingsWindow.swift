@@ -55,6 +55,7 @@ final class SettingsModel: ObservableObject {
     @Published var restoreClipboard = Prefs.restoreClipboard  { didSet { Prefs.restoreClipboard = restoreClipboard; changed() } }
     @Published var showErrorAlerts = Prefs.showErrorAlerts    { didSet { Prefs.showErrorAlerts = showErrorAlerts; changed() } }
     @Published var showResultPopover = Prefs.showResultPopover { didSet { Prefs.showResultPopover = showResultPopover; changed() } }
+    @Published var autoCheckUpdates = Prefs.autoCheckUpdates  { didSet { Prefs.autoCheckUpdates = autoCheckUpdates; changed() } }
     @Published var showInDock = Prefs.showInDock              { didSet { Prefs.showInDock = showInDock; changed() } }
     @Published var duckMedia = Prefs.duckMediaWhileRecording  { didSet { Prefs.duckMediaWhileRecording = duckMedia; changed() } }
     @Published var forceServer = Prefs.forceServerRecognition { didSet { Prefs.forceServerRecognition = forceServer; changed() } }
@@ -91,6 +92,7 @@ final class SettingsModel: ObservableObject {
         var openDictationSettings: () -> Void = {}
         var openAccessibility: () -> Void = {}
         var reopenOnboarding: () -> Void = {}
+        var checkForUpdates: () -> Void = {}
     }
     var actions = Actions()
 
@@ -578,6 +580,12 @@ struct AdvancedPane: View {
                 ActionRow("Claude Code CLI 확인", "경로·버전·로그인 상태를 확인합니다.", action: model.actions.checkCLI)
                 ActionRow("CLI 플래그 캐시 초기화", "미지원으로 기억해 둔 플래그를 지웁니다.", action: model.actions.resetCLIFlags)
                 ActionRow("로그 열기", Log.url.path, action: model.actions.openLog, last: true)
+            }
+            SettingsSection("업데이트") {
+                ActionRow("업데이트 확인", "현재 \(model.appVersion). GitHub 에 새 버전이 있으면 알려 주고 다운로드 링크를 엽니다.", action: model.actions.checkForUpdates)
+                SettingsRow(title: "실행할 때 자동으로 확인", subtitle: "하루에 한 번 확인합니다. 새 버전이 있을 때만 알려 줍니다.", last: true) {
+                    InkToggle(isOn: $model.autoCheckUpdates)
+                }
             }
             SettingsSection("시스템") {
                 ActionRow("처음 설정 안내 다시 보기", "권한·AI 모델·단축키를 처음처럼 한 단계씩 다시 설정합니다.", action: model.actions.reopenOnboarding)
