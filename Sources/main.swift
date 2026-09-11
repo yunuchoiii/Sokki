@@ -140,6 +140,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private var pendingDuration: TimeInterval = 0
     private var pendingReplacing: SummaryRecord?
 
+    // 녹음 중 Esc 로 취소. 전역 감시는 다른 앱 위에서도 잡고, 로컬 감시는 팝오버가 키 창일 때 잡는다.
+    private var escMonitors: [Any] = []
+
     // 녹음 타이머 · 침묵 감지
     private var recordingStartedAt: Date?
     private var recordingTimer: Timer?
@@ -306,6 +309,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 self?.model.pushLevel(level)
             })
             recordingStartedAt = Date()
+            installEscMonitor()
             if Prefs.duckMediaWhileRecording { AudioDucker.duck() }
             startRecordingTimer()
             model.phase = .recording
@@ -342,7 +346,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         recordingTimer = nil
     }
 
+    /// Esc(keyCode 53)를 누르면 녹음을 취소한다. 전역 감시는 이벤트를 삼키지 못하므로 앞 앱에도 Esc 가 전달된다.
+    private func installEscMonitor() {
+        removeEscMonitor()
+        let handler: (NSEvent) -> Void = { [weak self] event in
+            guard let self, event.keyCode == 53, self.recorder.isRunning else { return }
+            Log.write("Esc — 녹음 취소")
+            self.cancelRecording()
+        }
+        if let g = NSEvent.addGlobalMonitorForEvents(matching: .keyDown, handler: handler) { escMonitors.append(g) }
+        if let l = NSEvent.addLocalMonitorForEvents(matching: .keyDown, handler: { event in
+            if event.keyCode == 53 { handler(event); return nil }
+            return event
+        }) { escMonitors.append(l) }
+    }
+
+    private func removeEscMonitor() {
+        for m in escMonitors { NSEvent.removeMonitor(m) }
+        escMonitors = []
+    }
+
     private func cancelRecording() {
+        removeEscMonitor()
         stopRecordingTimer()
         recorder.cancel()
         AudioDucker.restore()
@@ -354,6 +379,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     private func stopAndPolish() {
+        removeEscMonitor()
         stopRecordingTimer()
         let duration = recordingStartedAt.map { Date().timeIntervalSince($0) } ?? 0
         recordingStartedAt = nil
@@ -424,9 +450,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     private func handleEmptyTranscript(_ recError: Error?) {
+        // 아무 말도 안 한 건 오류가 아니다. 인식기는 침묵을 "No speech detected"(kAFAssistantErrorDomain 1110)로
+        // 돌려주는데, 이걸 실패로 다루면 오류 창이 뜨고 온디바이스에선 서버 인식으로 영구 전환까지 됐다.
+        // 마이크 버퍼가 하나도 안 왔을 때만 진짜 문제로 본다.
+        let lowered = (recError?.localizedDescription ?? "").lowercased()
+        let noSpeech = recError == nil || lowered.contains("no speech") || (recError as NSError?)?.code == 1110
+        if noSpeech && recorder.bufferCount > 0 {
+            finishQuietly("말한 내용이 없어요")
+            return
+        }
+
         if let recError {
             let detail = recError.localizedDescription
-            let lowered = detail.lowercased()
 
             // macOS 받아쓰기 자체가 꺼져 있는 경우. 서버 인식으로 바꿔도 소용없다.
             if lowered.contains("dictation") || lowered.contains("siri") {
@@ -454,6 +489,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 • 인식 언어(현재 \(Prefs.localeID))가 실제 말한 언어와 맞는지
                 """)
         }
+    }
+
+    /// 빈 녹음처럼 알릴 게 없을 때. 오류 화면 없이 대기로 돌아가고 팝오버는 닫는다.
+    private func finishQuietly(_ message: String) {
+        Log.write("빈 녹음 — \(message) (버퍼 \(recorder.bufferCount)개)")
+        partialText = ""
+        model.phase = .idle
+        setState(.idle, message: message)
+        if popover.isShown { popover.performClose(nil) }
     }
 
     private func deliver(_ record: SummaryRecord, message: String) {
