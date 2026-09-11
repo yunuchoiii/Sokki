@@ -33,12 +33,17 @@ final class SpeechRecorder {
     private var recognizer: SFSpeechRecognizer?
 
     private var latest = ""
+    /// 온디바이스 인식기는 말이 끊기면 구간을 새로 시작하며 이전 구간을 버린다(2026-09-11 실측: 3초 멈춤 뒤 앞 문장 소실,
+    /// 최종 결과는 뒤 구간만). 부분 결과에 시간 정보도 없어(전부 0.00) 텍스트로 리셋을 알아채 이전 구간을 committed 에 모은다.
+    private var committed = ""
+    private var current = ""
     private var failure: Error?
     private var completion: ((String, Error?) -> Void)?
     private var didFinish = false
     private var earlyFinal = false
     private var safetyTimer: DispatchWorkItem?
-    private var bufferCount = 0
+    /// 이번 녹음에서 마이크가 넘긴 버퍼 수. 0 이면 말이 없는 게 아니라 마이크가 안 잡힌 것.
+    private(set) var bufferCount = 0
     private var configObserver: NSObjectProtocol?
     private var levelHandler: ((Float) -> Void)?
 
@@ -81,6 +86,8 @@ final class SpeechRecorder {
         recognizer = rec
 
         latest = ""
+        committed = ""
+        current = ""
         failure = nil
         didFinish = false
         earlyFinal = false
@@ -137,13 +144,14 @@ final class SpeechRecorder {
             guard let self else { return }
 
             if let result {
-                let text = result.bestTranscription.formattedString
+                let raw = result.bestTranscription.formattedString
                 DispatchQueue.main.async {
+                    let text = self.absorb(raw)
                     self.latest = text
                     onPartial(text)
                 }
                 if result.isFinal {
-                    Log.write("최종 인식 결과 수신: \(text.count)자")
+                    Log.write("최종 인식 결과 수신: \(raw.count)자")
                     self.finishOrMarkEarly()
                 }
             }
@@ -199,6 +207,37 @@ final class SpeechRecorder {
         task?.cancel()
         task = nil
         request = nil
+    }
+
+    // MARK: - 구간 누적
+
+    /// 인식기가 준 텍스트를 지금까지의 구간에 합친다. 메인 스레드에서 부른다.
+    func absorb(_ text: String) -> String {
+        if text.isEmpty { return Self.join(committed, current) }   // 빈 최종 결과로 현재 구간을 지우지 않는다
+        if Self.looksLikeReset(from: current, to: text) {
+            Log.write("인식 구간 리셋 감지 — 이전 구간 \(current.count)자 보존")
+            committed = Self.join(committed, current)
+        }
+        current = text
+        return Self.join(committed, current)
+    }
+
+    /// 부분 결과는 앞부분을 유지한 채 뒤로 자라거나 살짝 고쳐진다. 새 구간은 앞머리부터 다르고 짧게 시작한다.
+    /// 앞 4글자(공백 제외)가 서로 이어지지 않고 길이가 절반 이하로 줄었으면 리셋으로 본다.
+    static func looksLikeReset(from prev: String, to next: String) -> Bool {
+        let p = prev.filter { !$0.isWhitespace }
+        let n = next.filter { !$0.isWhitespace }
+        guard p.count >= 6, n.count * 2 <= p.count else { return false }
+        let head = String(p.prefix(4))
+        let nextHead = String(n.prefix(min(4, n.count)))
+        return !n.hasPrefix(head) && !p.hasPrefix(nextHead)
+    }
+
+    static func join(_ a: String, _ b: String) -> String {
+        let a = a.trimmingCharacters(in: .whitespaces), b = b.trimmingCharacters(in: .whitespaces)
+        if a.isEmpty { return b }
+        if b.isEmpty { return a }
+        return a + " " + b
     }
 
     // MARK: - 내부

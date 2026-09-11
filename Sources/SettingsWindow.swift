@@ -17,7 +17,7 @@ extension Notification.Name {
 final class SettingsModel: ObservableObject {
 
     enum Tab: String, CaseIterable, Identifiable {
-        case general, personal, recognition, hotkey, advanced
+        case general, personal, recognition, hotkey, updates, advanced
         var id: String { rawValue }
         var title: String {
             switch self {
@@ -25,6 +25,7 @@ final class SettingsModel: ObservableObject {
             case .personal:    return "개인화"
             case .recognition: return "음성인식 · AI"
             case .hotkey:      return "단축키"
+            case .updates:     return "업데이트"
             case .advanced:    return "고급 · 진단"
             }
         }
@@ -34,6 +35,7 @@ final class SettingsModel: ObservableObject {
             case .personal:    return "person.crop.circle"
             case .recognition: return "waveform.path"
             case .hotkey:      return "keyboard"
+            case .updates:     return "arrow.down.circle"
             case .advanced:    return "sparkles"
             }
         }
@@ -58,6 +60,7 @@ final class SettingsModel: ObservableObject {
     @Published var autoCheckUpdates = Prefs.autoCheckUpdates  { didSet { Prefs.autoCheckUpdates = autoCheckUpdates; changed() } }
     @Published var showInDock = Prefs.showInDock              { didSet { Prefs.showInDock = showInDock; changed() } }
     @Published var duckMedia = Prefs.duckMediaWhileRecording  { didSet { Prefs.duckMediaWhileRecording = duckMedia; changed() } }
+    @Published var recordingSounds = Prefs.recordingSounds    { didSet { Prefs.recordingSounds = recordingSounds; changed() } }
     @Published var forceServer = Prefs.forceServerRecognition { didSet { Prefs.forceServerRecognition = forceServer; changed() } }
     @Published var polishEnabled = Prefs.polishEnabled        { didSet { Prefs.polishEnabled = polishEnabled; changed() } }
     @Published var backend = Prefs.backend                    { didSet { Prefs.backend = backend; changed() } }
@@ -179,6 +182,7 @@ struct SettingsView: View {
                     case .personal:    PersonalPane(model: model)
                     case .recognition: RecognitionPane(model: model)
                     case .hotkey:      HotKeyPane(model: model)
+                    case .updates:     UpdatesPane(model: model)
                     case .advanced:    AdvancedPane(model: model)
                     }
                 }
@@ -245,6 +249,9 @@ struct GeneralPane: View {
                         }
                         InkToggle(isOn: $model.autoStop)
                     }
+                }
+                SettingsRow(title: "녹음 시작·종료 알림음", subtitle: "시작할 때와 끝낼 때 짧은 소리로 알려 줍니다.") {
+                    InkToggle(isOn: $model.recordingSounds)
                 }
                 SettingsRow(title: "녹음 중 다른 소리 줄이기",
                             subtitle: "재생 중인 음악·영상 소리를 녹음이 끝날 때까지 낮춥니다. 에어팟은 맥이 알아서 줄입니다.") {
@@ -568,6 +575,36 @@ struct HotKeyPane: View {
 
 // MARK: 고급 · 진단
 
+// MARK: 2e 업데이트
+
+struct UpdatesPane: View {
+    @ObservedObject var model: SettingsModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            SettingsSection("새 버전") {
+                ActionRow("업데이트 확인", "지금 버전은 \(model.appVersion) 입니다. GitHub 에 새 버전이 있으면 바뀐 점과 다운로드 버튼을 보여 줍니다.",
+                          action: model.actions.checkForUpdates)
+                ActionRow("바뀐 점 보기", "지금까지 나온 버전과 바뀐 점을 GitHub 릴리스 페이지에서 봅니다.", action: {
+                    if let url = URL(string: "https://github.com/yunuchoiii/Sokki/releases") { NSWorkspace.shared.open(url) }
+                }, last: true)
+            }
+            SettingsSection("자동 확인") {
+                SettingsRow(title: "실행할 때 자동으로 확인",
+                            subtitle: "하루에 한 번 확인하고, 새 버전이 있을 때만 알려 줍니다. \"나중에\"를 누른 버전은 다시 묻지 않습니다.",
+                            last: true) {
+                    InkToggle(isOn: $model.autoCheckUpdates)
+                }
+            }
+            SettingsSection("설치 방법") {
+                SettingsRow(title: "다운로드 → Applications 로 끌어 넣기",
+                            subtitle: "다운로드를 누르면 DMG 를 받습니다. 열어서 Sokki 를 Applications 폴더에 끌어 넣으면 덮어써지고, 설정과 권한은 그대로 유지됩니다.",
+                            last: true) { EmptyView() }
+            }
+        }
+    }
+}
+
 struct AdvancedPane: View {
     @ObservedObject var model: SettingsModel
     var body: some View {
@@ -580,12 +617,6 @@ struct AdvancedPane: View {
                 ActionRow("Claude Code CLI 확인", "경로·버전·로그인 상태를 확인합니다.", action: model.actions.checkCLI)
                 ActionRow("CLI 플래그 캐시 초기화", "미지원으로 기억해 둔 플래그를 지웁니다.", action: model.actions.resetCLIFlags)
                 ActionRow("로그 열기", Log.url.path, action: model.actions.openLog, last: true)
-            }
-            SettingsSection("업데이트") {
-                ActionRow("업데이트 확인", "현재 \(model.appVersion). GitHub 에 새 버전이 있으면 알려 주고 다운로드 링크를 엽니다.", action: model.actions.checkForUpdates)
-                SettingsRow(title: "실행할 때 자동으로 확인", subtitle: "하루에 한 번 확인합니다. 새 버전이 있을 때만 알려 줍니다.", last: true) {
-                    InkToggle(isOn: $model.autoCheckUpdates)
-                }
             }
             SettingsSection("시스템") {
                 ActionRow("처음 설정 안내 다시 보기", "권한·AI 모델·단축키를 처음처럼 한 단계씩 다시 설정합니다.", action: model.actions.reopenOnboarding)
