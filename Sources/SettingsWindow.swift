@@ -58,6 +58,7 @@ final class SettingsModel: ObservableObject {
     @Published var autoCheckUpdates = Prefs.autoCheckUpdates  { didSet { Prefs.autoCheckUpdates = autoCheckUpdates; changed() } }
     @Published var showInDock = Prefs.showInDock              { didSet { Prefs.showInDock = showInDock; changed() } }
     @Published var duckMedia = Prefs.duckMediaWhileRecording  { didSet { Prefs.duckMediaWhileRecording = duckMedia; changed() } }
+    @Published var recordingSounds = Prefs.recordingSounds    { didSet { Prefs.recordingSounds = recordingSounds; changed() } }
     @Published var forceServer = Prefs.forceServerRecognition { didSet { Prefs.forceServerRecognition = forceServer; changed() } }
     @Published var polishEnabled = Prefs.polishEnabled        { didSet { Prefs.polishEnabled = polishEnabled; changed() } }
     @Published var backend = Prefs.backend                    { didSet { Prefs.backend = backend; changed() } }
@@ -245,6 +246,9 @@ struct GeneralPane: View {
                         }
                         InkToggle(isOn: $model.autoStop)
                     }
+                }
+                SettingsRow(title: "녹음 시작·종료 알림음", subtitle: "시작할 때와 끝낼 때 짧은 소리로 알려 줍니다.") {
+                    InkToggle(isOn: $model.recordingSounds)
                 }
                 SettingsRow(title: "녹음 중 다른 소리 줄이기",
                             subtitle: "재생 중인 음악·영상 소리를 녹음이 끝날 때까지 낮춥니다. 에어팟은 맥이 알아서 줄입니다.") {

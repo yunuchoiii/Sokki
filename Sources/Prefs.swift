@@ -332,6 +332,12 @@ enum Prefs {
         set { d.set(newValue, forKey: "showResultPopover") }
     }
 
+    /// 녹음 시작·종료 때 짧은 알림음. 시작 Pop, 종료 Blow (정리 뒤 복사는 Tink).
+    static var recordingSounds: Bool {
+        get { d.object(forKey: "recordingSounds") as? Bool ?? true }
+        set { d.set(newValue, forKey: "recordingSounds") }
+    }
+
     /// 녹음 중에 재생 중인 다른 소리를 낮춘다. 에어팟은 macOS 가 알아서 하므로 내장 스피커 등에만 적용.
     static var duckMediaWhileRecording: Bool {
         get { d.object(forKey: "duckMediaWhileRecording") as? Bool ?? true }

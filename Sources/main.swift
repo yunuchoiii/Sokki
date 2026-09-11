@@ -310,6 +310,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             })
             recordingStartedAt = Date()
             installEscMonitor()
+            playCue(.start)   // 볼륨을 낮추기 전에
             if Prefs.duckMediaWhileRecording { AudioDucker.duck() }
             startRecordingTimer()
             model.phase = .recording
@@ -344,6 +345,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private func stopRecordingTimer() {
         recordingTimer?.invalidate()
         recordingTimer = nil
+    }
+
+    enum Cue { case start, stop }
+
+    /// 녹음 시작·종료 알림음. 시스템 소리라 따로 파일을 두지 않는다. 정리 뒤 복사 알림(Tink)과 겹치지 않는 것으로.
+    private func playCue(_ cue: Cue) {
+        guard Prefs.recordingSounds else { return }
+        let name: NSSound.Name = cue == .start ? "Pop" : "Blow"
+        guard let sound = NSSound(named: name) else { return }
+        sound.volume = 0.6
+        sound.play()
     }
 
     /// Esc(keyCode 53)를 누르면 녹음을 취소한다. 전역 감시는 이벤트를 삼키지 못하므로 앞 앱에도 Esc 가 전달된다.
@@ -387,6 +399,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         setState(.polishing, message: "정리 중…")
 
         AudioDucker.restore()
+        playCue(.stop)    // 볼륨을 되돌린 뒤에
         recorder.stop { [weak self] transcript, recError in
             guard let self else { return }
             let raw = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
