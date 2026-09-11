@@ -332,7 +332,7 @@ enum Prefs {
         set { d.set(newValue, forKey: "showResultPopover") }
     }
 
-    /// 녹음 시작·종료 때 짧은 알림음. 시작 Pop, 종료 Blow (정리 뒤 복사는 Tink).
+    /// 녹음 시작·종료 때 "띠딩" 알림음. 시작은 올라가는 두 음, 종료는 내려가는 두 음 (정리 뒤 복사는 Tink).
     static var recordingSounds: Bool {
         get { d.object(forKey: "recordingSounds") as? Bool ?? true }
         set { d.set(newValue, forKey: "recordingSounds") }
