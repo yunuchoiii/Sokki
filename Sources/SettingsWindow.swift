@@ -332,7 +332,7 @@ struct RecognitionPane: View {
         VStack(alignment: .leading, spacing: 18) {
             SettingsSection("음성 인식") {
                 SettingsRow(title: "음성 인식을 애플 서버에서 처리",
-                            subtitle: "켜면 더 정확하지만 인터넷이 필요하고 한 번에 약 1분까지 인식합니다. 끄면 인터넷 없이 이 맥에서만 인식합니다.",
+                            subtitle: "기본 켬. 더 정확하지만 인터넷이 필요하고 한 번에 약 1분까지 인식합니다. 끄면 인터넷 없이 이 맥에서만 인식하지만 정확도가 떨어집니다.",
                             last: true) {
                     InkToggle(isOn: $model.forceServer)
                 }
