@@ -23,8 +23,23 @@ enum UpdateChecker {
     }
 
     static let latestAPI = URL(string: "https://api.github.com/repos/yunuchoiii/brefly/releases/latest")!
-    /// README·랜딩 페이지와 같은 바로 받기 주소. 릴리스마다 고정 이름 Brefly.dmg 를 올리는 규칙에 기댄다.
-    static let downloadURL = URL(string: "https://github.com/yunuchoiii/brefly/releases/latest/download/Brefly.dmg")!
+    /// README·랜딩 페이지가 쓰는 바로 받기 주소. 고정 이름이라 늘 최신을 가리킨다.
+    /// 앱에서는 쓰지 않는다 — 아래 downloadURL(for:) 설명 참고.
+    static let freshInstallURL = URL(string: "https://github.com/yunuchoiii/brefly/releases/latest/download/Brefly.dmg")!
+
+    /// 앱 안에서 업데이트를 받을 때 쓰는 주소. 고정 이름이 아니라 **버전 붙은 파일명**을 가리킨다.
+    ///
+    /// 둘을 갈라 두면 GitHub 이 세어 주는 에셋별 다운로드 수만으로 신규와 기존을 구분할 수 있다.
+    ///   Brefly.dmg        → README·랜딩 페이지를 보고 처음 받는 사람
+    ///   Brefly-X.Y.Z.dmg  → 이미 쓰고 있다가 업데이트하는 사람 (= 실사용자 하한선)
+    /// 추적 코드를 넣지 않고 얻는 지표다. 앱이 보내는 요청은 전과 똑같다.
+    ///
+    /// ⚠️ 릴리스에 버전 붙은 DMG 를 같이 올리지 않으면 이 링크가 404 가 된다.
+    ///    make-dmg.sh 가 두 파일을 다 만들고 배포 절차가 둘 다 올린다(README 참고).
+    static func downloadURL(for release: Release) -> URL {
+        URL(string: "https://github.com/yunuchoiii/brefly/releases/download/\(release.tag)/Brefly-\(release.version).dmg")
+            ?? freshInstallURL
+    }
     static let autoCheckInterval: TimeInterval = 24 * 60 * 60
 
     static var currentVersion: String {
@@ -145,7 +160,7 @@ enum UpdateChecker {
         NSApp.activate(ignoringOtherApps: true)
         switch alert.runModal() {
         case .alertFirstButtonReturn:
-            NSWorkspace.shared.open(downloadURL)
+            NSWorkspace.shared.open(downloadURL(for: release))
             Log.write("업데이트 다운로드 열기: \(release.version)")
         case .alertThirdButtonReturn:
             if let url = URL(string: release.pageURL) { NSWorkspace.shared.open(url) }
