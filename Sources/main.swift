@@ -140,6 +140,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private var pendingDuration: TimeInterval = 0
     private var pendingReplacing: SummaryRecord?
 
+    /// 손쉬운 사용 권한 감시가 이미 돌고 있는지. 타이머가 여러 개 겹치면 안내가 여러 번 뜬다.
+    private var trustWatcherRunning = false
+
     // 녹음 중 Esc 로 취소. 전역 감시는 다른 앱 위에서도 잡고, 로컬 감시는 팝오버가 키 창일 때 잡는다.
     private var escMonitors: [Any] = []
 
@@ -212,11 +215,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         // 기본값은 클립보드 복사이므로 권한을 요구하지 않는다.
         // 자동 붙여넣기를 켠 사용자에게만 안내한다.
         if Prefs.autoPaste && !Paster.isTrusted {
+            // 실행 직후엔 이미 켜 둔 권한도 false 로 보인다. 알림창을 바로 띄우지 말고 15초 기다렸다가,
+            // 그래도 없으면 안내한다. 그 사이 권한이 확인되면 아무 일도 없었던 것처럼 넘어간다.
             Paster.requestTrust()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                self.showAccessibilityNotice()
-            }
-            startTrustWatcher()
+            startTrustWatcher(noticeAfter: 15, notice: { [weak self] in self?.showAccessibilityNotice() })
         }
     }
 
@@ -234,18 +236,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     /// 권한이 켜지는 순간을 감지해 메뉴를 갱신한다. AXIsProcessTrusted는 폴링만 가능하다.
-    private func startTrustWatcher() {
+    /// - noticeAfter: 이 시간(초)이 지나도 권한이 없으면 그때 안내한다. nil 이면 조용히 기다리기만 한다.
+    private func startTrustWatcher(noticeAfter: Int? = nil, notice: (() -> Void)? = nil) {
+        guard !trustWatcherRunning else { return }
+        trustWatcherRunning = true
         var elapsed = 0
+        var notified = false
         Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] timer in
+            guard let self else { timer.invalidate(); return }
             elapsed += 2
             if Paster.isTrusted {
                 Log.write("접근성 권한이 허용되었습니다.")
                 timer.invalidate()
-                self?.setState(.idle, message: "접근성 권한 확인됨")
-                if Prefs.currentHotKey.isModifierOnly { self?.registerHotKey() }
-                self?.settings.model.refresh()
-            } else if elapsed > 300 {
+                self.trustWatcherRunning = false
+                self.setState(.idle, message: "접근성 권한 확인됨")
+                if Prefs.currentHotKey.isModifierOnly { self.registerHotKey() }
+                self.settings.model.refresh()
+                return
+            }
+            if let noticeAfter, !notified, elapsed >= noticeAfter {
+                notified = true
+                if let notice {
+                    notice()
+                } else {
+                    self.fail("단축키 \(Prefs.currentHotKey.title) 는 손쉬운 사용 권한이 있어야 동작합니다.\n\n시스템 설정 > 개인정보 보호 및 보안 > 손쉬운 사용에서 Brefly 를 켜 주세요. 권한이 켜지면 자동으로 다시 등록합니다.")
+                }
+            }
+            if elapsed > 300 {
                 timer.invalidate()
+                self.trustWatcherRunning = false
             }
         }
     }
@@ -272,8 +291,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             let ok = ModifierHotKey.register(combo, action: action)
             Log.write("수정자 단축키 \(combo.title) 등록: \(ok)")
             if !ok {
-                fail("단축키 \(combo.title) 는 손쉬운 사용 권한이 있어야 동작합니다.\n\n시스템 설정 > 개인정보 보호 및 보안 > 손쉬운 사용에서 Brefly를 켜 주세요. 권한이 켜지면 자동으로 다시 등록합니다.")
-                startTrustWatcher()
+                // 사용자가 이미 권한을 켜 뒀어도 앱이 막 뜬 직후엔 false 로 보인다(번들 ID 가 바뀐 첫 실행에서 14초 걸렸다).
+                // 곧바로 오류를 띄우지 말고 감시만 걸어 둔다. 끝내 안 풀리면 startTrustWatcher 가 그때 안내한다.
+                startTrustWatcher(noticeAfter: 15)
             }
             return
         }
