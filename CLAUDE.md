@@ -8,7 +8,7 @@ git 규칙(브랜치·커밋·PR)은 전역 `git-workflow` 스킬을 따른다. 
 ```bash
 ./build.sh                  # build/Brefly.app (서명: Developer ID > 로컬 'Sokgi Dev' > 애드혹 순으로 자동)
 ./build.sh --install        # /Applications 에 설치하고 실행 (실행 중인 Brefly 는 죽인다)
-./make-dmg.sh               # 빌드 → DMG → Developer ID 서명 → 공증 → 스테이플 (notarytool 프로필 'brefly' 필요)
+./make-dmg.sh               # 빌드 → DMG → Developer ID 서명 → 공증 → 스테이플 (notarytool 프로필 'brefly' 또는 'sokki' 필요)
 ```
 
 - **화면 확인**: `build/Brefly.app/Contents/MacOS/Brefly --render-previews <dir>` 가 팝오버·설정 창 각 상태를
