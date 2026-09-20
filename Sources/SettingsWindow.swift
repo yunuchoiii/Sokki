@@ -332,7 +332,7 @@ struct RecognitionPane: View {
         VStack(alignment: .leading, spacing: 18) {
             SettingsSection("음성 인식") {
                 SettingsRow(title: "음성 인식을 애플 서버에서 처리",
-                            subtitle: "켜면 더 정확하지만 인터넷이 필요하고 한 번에 약 1분까지 인식합니다. 끄면 인터넷 없이 이 맥에서만 인식합니다.",
+                            subtitle: "기본 켬. 더 정확하지만 인터넷이 필요하고 한 번에 약 1분까지 인식합니다. 끄면 인터넷 없이 이 맥에서만 인식하지만 정확도가 떨어집니다.",
                             last: true) {
                     InkToggle(isOn: $model.forceServer)
                 }
@@ -600,6 +600,11 @@ struct UpdatesPane: View {
                 SettingsRow(title: "다운로드 → Applications 로 끌어 넣기",
                             subtitle: "다운로드를 누르면 DMG 를 받습니다. 열어서 Sokki 를 Applications 폴더에 끌어 넣으면 덮어써지고, 설정과 권한은 그대로 유지됩니다.",
                             last: true) { EmptyView() }
+            }
+            SettingsSection("후원") {
+                ActionRow("커피 한 잔으로 응원하기", "Sokki 는 무료입니다. 도움이 됐다면 GitHub Sponsors 로 응원해 주세요.", action: {
+                    if let url = URL(string: "https://github.com/sponsors/yunuchoiii") { NSWorkspace.shared.open(url) }
+                }, last: true)
             }
         }
     }
