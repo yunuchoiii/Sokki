@@ -190,7 +190,7 @@ tail -f ~/Library/Logs/Brefly.log                                        # "자�
 ./make-dmg.sh               # 빌드 → DMG → Developer ID 서명 → 공증 → 스테이플
 ```
 
-Developer ID Application 인증서와 notarytool 프로필 `sokki` 가 있는 맥에서만 공증됩니다. 순서: Info.plist 버전 올림 →
+Developer ID Application 인증서와 notarytool 프로필(`brefly` 또는 이름 바꾸기 전의 `sokki`)이 있는 맥에서만 공증됩니다. 순서: Info.plist 버전 올림 →
 `make-dmg.sh` → dev→main PR → 머지 **후** 태그 → `gh release create vX.Y.Z build/Brefly-X.Y.Z.dmg build/Brefly.dmg` →
 `gh workflow run pages.yml -R yunuchoiii/brefly-pages`.
 
