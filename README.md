@@ -6,17 +6,17 @@
 
 **단축키를 누르고 말하면, 받아 적고, AI 가 군말을 정리해서, 커서가 있는 자리에 붙여 넣습니다.**
 
-<a href="https://github.com/yunuchoiii/Brefly/releases/latest/download/Brefly.dmg">
+<a href="https://github.com/yunuchoiii/brefly/releases/latest/download/Brefly.dmg">
   <img src="https://img.shields.io/badge/⬇%20다운로드-DMG-e0604a?style=for-the-badge&labelColor=16181d" alt="다운로드">
 </a>
-<a href="https://yunuchoiii.github.io/Brefly-Pages/">
+<a href="https://yunuchoiii.github.io/brefly-pages/">
   <img src="https://img.shields.io/badge/소개%20페이지-바로가기-16181d?style=for-the-badge" alt="소개 페이지">
 </a>
 
 <img src="https://img.shields.io/badge/macOS-13%2B-16181d?style=flat-square&logo=apple&logoColor=white" alt="macOS 13+">
 <img src="https://img.shields.io/badge/Swift-SwiftUI-e0604a?style=flat-square&logo=swift&logoColor=white" alt="Swift">
 <img src="https://img.shields.io/badge/무료-애플%20공증%20완료-3f9e6e?style=flat-square" alt="무료">
-<a href="https://github.com/yunuchoiii/Brefly/releases"><img src="https://img.shields.io/github/v/release/yunuchoiii/Brefly?style=flat-square&color=16181d&label=최신" alt="최신 버전"></a>
+<a href="https://github.com/yunuchoiii/brefly/releases"><img src="https://img.shields.io/github/v/release/yunuchoiii/brefly?style=flat-square&color=16181d&label=최신" alt="최신 버전"></a>
 
 </div>
 
@@ -192,7 +192,7 @@ tail -f ~/Library/Logs/Brefly.log                                        # "자�
 
 Developer ID Application 인증서와 notarytool 프로필 `sokki` 가 있는 맥에서만 공증됩니다. 순서: Info.plist 버전 올림 →
 `make-dmg.sh` → dev→main PR → 머지 **후** 태그 → `gh release create vX.Y.Z build/Brefly-X.Y.Z.dmg build/Brefly.dmg` →
-`gh workflow run pages.yml -R yunuchoiii/Brefly-Pages`.
+`gh workflow run pages.yml -R yunuchoiii/brefly-pages`.
 
 ## 구조
 

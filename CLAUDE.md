@@ -19,7 +19,7 @@ git 규칙(브랜치·커밋·PR)은 전역 `git-workflow` 스킬을 따른다. 
 - 로그: `~/Library/Logs/Brefly.log`. "자동 모드: ○○ 채택 (n초)" 줄로 어느 모델이 이겼는지 본다.
 - 배포: Info.plist 버전 올림 → `./make-dmg.sh` → dev→main PR(사람이 머지) → **머지 후** 태그 →
   `gh release create vX.Y.Z build/Brefly-X.Y.Z.dmg build/Brefly.dmg`(고정 이름은 README 바로 받기 링크용) →
-  `gh workflow run pages.yml -R yunuchoiii/Brefly-Pages`(랜딩 페이지가 릴리스 노트를 빌드 때 가져오므로 다시 빌드). 태그를 머지 전에 찍으면 첫 커밋을 가리킨다(v0.1.0 에서 실수).
+  `gh workflow run pages.yml -R yunuchoiii/brefly-pages`(랜딩 페이지가 릴리스 노트를 빌드 때 가져오므로 다시 빌드). 태그를 머지 전에 찍으면 첫 커밋을 가리킨다(v0.1.0 에서 실수).
   GitHub Actions 워크플로는 인증서가 없어 공증이 안 되므로 수동 실행 전용.
 
 ## 구조에서 안 보이는 결정들

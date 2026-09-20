@@ -22,9 +22,9 @@ enum UpdateChecker {
         }
     }
 
-    static let latestAPI = URL(string: "https://api.github.com/repos/yunuchoiii/Brefly/releases/latest")!
+    static let latestAPI = URL(string: "https://api.github.com/repos/yunuchoiii/brefly/releases/latest")!
     /// README·랜딩 페이지와 같은 바로 받기 주소. 릴리스마다 고정 이름 Brefly.dmg 를 올리는 규칙에 기댄다.
-    static let downloadURL = URL(string: "https://github.com/yunuchoiii/Brefly/releases/latest/download/Brefly.dmg")!
+    static let downloadURL = URL(string: "https://github.com/yunuchoiii/brefly/releases/latest/download/Brefly.dmg")!
     static let autoCheckInterval: TimeInterval = 24 * 60 * 60
 
     static var currentVersion: String {
@@ -51,7 +51,7 @@ enum UpdateChecker {
                 let version = tag.hasPrefix("v") ? String(tag.dropFirst()) : tag
                 let release = Release(version: version, tag: tag,
                                       notes: summarize(json["body"] as? String ?? ""),
-                                      pageURL: json["html_url"] as? String ?? "https://github.com/yunuchoiii/Brefly/releases")
+                                      pageURL: json["html_url"] as? String ?? "https://github.com/yunuchoiii/brefly/releases")
                 result = .success(isNewer(version, than: current) ? release : nil)
             } else {
                 result = .failure(CheckError.noTag)

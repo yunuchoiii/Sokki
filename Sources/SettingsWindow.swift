@@ -586,7 +586,7 @@ struct UpdatesPane: View {
                 ActionRow("업데이트 확인", "지금 버전은 \(model.appVersion) 입니다. GitHub 에 새 버전이 있으면 바뀐 점과 다운로드 버튼을 보여 줍니다.",
                           action: model.actions.checkForUpdates)
                 ActionRow("바뀐 점 보기", "지금까지 나온 버전과 바뀐 점을 GitHub 릴리스 페이지에서 봅니다.", action: {
-                    if let url = URL(string: "https://github.com/yunuchoiii/Brefly/releases") { NSWorkspace.shared.open(url) }
+                    if let url = URL(string: "https://github.com/yunuchoiii/brefly/releases") { NSWorkspace.shared.open(url) }
                 }, last: true)
             }
             SettingsSection("자동 확인") {
