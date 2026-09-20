@@ -4,19 +4,27 @@
 
 <br>
 
-**단축키를 누르고 말하면, 받아 적고, AI 가 군말을 정리해서, 커서가 있는 자리에 붙여 넣습니다.**
+<p>
+  <a href="https://github.com/yunuchoiii/brefly/releases/latest/download/Brefly.dmg">
+    <img src="https://img.shields.io/badge/⬇%20다운로드-DMG-e0604a?style=for-the-badge&labelColor=16181d" alt="다운로드" height="40">
+  </a>
+  <a href="https://yunuchoiii.github.io/brefly-pages/">
+    <img src="https://img.shields.io/badge/소개%20페이지-바로가기-16181d?style=for-the-badge" alt="소개 페이지" height="40">
+  </a>
+  <a href="https://github.com/sponsors/yunuchoiii">
+    <img src="https://img.shields.io/badge/커피%20한%20잔-후원-db61a2?style=for-the-badge&logo=githubsponsors&logoColor=white&labelColor=16181d" alt="커피 한 잔 후원" height="40">
+  </a>
+</p>
 
-<a href="https://github.com/yunuchoiii/brefly/releases/latest/download/Brefly.dmg">
-  <img src="https://img.shields.io/badge/⬇%20다운로드-DMG-e0604a?style=for-the-badge&labelColor=16181d" alt="다운로드">
-</a>
-<a href="https://yunuchoiii.github.io/brefly-pages/">
-  <img src="https://img.shields.io/badge/소개%20페이지-바로가기-16181d?style=for-the-badge" alt="소개 페이지">
-</a>
+<p>
+  <img src="https://img.shields.io/badge/macOS-13%2B-16181d?style=flat-square&logo=apple&logoColor=white" alt="macOS 13+">
+  <img src="https://img.shields.io/badge/Swift-SwiftUI-e0604a?style=flat-square&logo=swift&logoColor=white" alt="Swift">
+  <img src="https://img.shields.io/badge/무료-애플%20공증%20완료-3f9e6e?style=flat-square" alt="무료">
+</p>
 
-<img src="https://img.shields.io/badge/macOS-13%2B-16181d?style=flat-square&logo=apple&logoColor=white" alt="macOS 13+">
-<img src="https://img.shields.io/badge/Swift-SwiftUI-e0604a?style=flat-square&logo=swift&logoColor=white" alt="Swift">
-<img src="https://img.shields.io/badge/무료-애플%20공증%20완료-3f9e6e?style=flat-square" alt="무료">
-<a href="https://github.com/yunuchoiii/brefly/releases"><img src="https://img.shields.io/github/v/release/yunuchoiii/brefly?style=flat-square&color=16181d&label=최신" alt="최신 버전"></a>
+<p>
+  <a href="https://github.com/yunuchoiii/brefly/releases"><img src="https://img.shields.io/github/v/release/yunuchoiii/brefly?style=flat-square&color=16181d&label=%EC%B5%9C%EC%8B%A0" alt="최신 버전"></a>
+</p>
 
 </div>
 
@@ -154,7 +162,11 @@
 
 ## 후원
 
-무료 앱입니다. 도움이 됐다면 [커피 한 잔](https://github.com/sponsors/yunuchoiii)으로 응원해 주세요.
+무료 앱입니다. 도움이 됐다면 커피 한 잔으로 응원해 주세요.
+
+<a href="https://github.com/sponsors/yunuchoiii">
+  <img src="https://img.shields.io/badge/커피%20한%20잔-후원-db61a2?style=for-the-badge&logo=githubsponsors&logoColor=white&labelColor=16181d" alt="커피 한 잔 후원" height="40">
+</a>
 
 <br>
 
