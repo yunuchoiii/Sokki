@@ -73,5 +73,7 @@ git 규칙(브랜치·커밋·PR)은 전역 `git-workflow` 스킬을 따른다. 
   `startTrustWatcher(noticeAfter:)` 로 기다린다.
 - `make-dmg.sh` 실행 전에 이전 Brefly 볼륨이 마운트돼 있으면 Finder 배치가 엉뚱한 볼륨을 잡는다. 스크립트가 먼저 내린다.
 - `SettingsModel` 의 `hotKeyIndex` didSet 이 `Prefs.customHotKey` 를 지운다. 밖에서 다시 읽을 땐 먼저 읽어 두고 대입한다.
+- **릴리스 노트에 `## 바뀐 것` 과 `- ` 불릿을 꼭 넣는다.** 랜딩 페이지(`brefly-pages` 의 `app/page.tsx` `notesOf()`)가
+  그 섹션의 불릿만 뽑아 쓴다. 불릿이 없으면 릴리스 카드가 제목·날짜만 남고 본문이 빈 채로 배포된다(v0.5.1 에서 한 번 그랬다).
 - `make-dmg.sh` 는 Finder 를 AppleScript 로 조작해 창 크기·배경·아이콘 위치를 `.DS_Store` 에 심는다. 터미널에 Finder 자동화
   권한이 없으면 거기서 죽는다. 창 크기는 Finder 가 닫을 때 기록하므로 닫았다 다시 연 뒤 닫기 직전에 지정해야 남는다(안 그러면 920×464).
