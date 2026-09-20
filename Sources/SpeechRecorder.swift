@@ -13,9 +13,9 @@ enum RecorderError: LocalizedError {
         case .recognizerUnavailable(let locale):
             return "'\(locale)' 음성 인식을 쓸 수 없습니다. 시스템 설정 > 키보드 > 받아쓰기를 켜고 해당 언어를 추가하세요."
         case .notAuthorized:
-            return "음성 인식 권한이 없습니다. 시스템 설정 > 개인정보 보호 및 보안 > 음성 인식에서 Sokki를 켜세요."
+            return "음성 인식 권한이 없습니다. 시스템 설정 > 개인정보 보호 및 보안 > 음성 인식에서 Brefly를 켜세요."
         case .micDenied:
-            return "마이크 권한이 없습니다. 시스템 설정 > 개인정보 보호 및 보안 > 마이크에서 Sokki를 켜세요."
+            return "마이크 권한이 없습니다. 시스템 설정 > 개인정보 보호 및 보안 > 마이크에서 Brefly를 켜세요."
         case .noInputDevice:
             return "입력 장치를 찾지 못했습니다. 시스템 설정 > 사운드 > 입력에서 마이크를 확인하세요."
         }

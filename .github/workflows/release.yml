@@ -1,5 +1,5 @@
 # 수동 실행 전용 백업 경로. 러너엔 Developer ID 인증서가 없어 공증 안 된(경고 뜨는) DMG 가 나온다.
-# 정식 배포는 로컬에서:  ./make-dmg.sh  →  gh release create v0.2.0 build/Sokki-0.2.0.dmg
+# 정식 배포는 로컬에서:  ./make-dmg.sh  →  gh release create v0.2.0 build/Brefly-0.2.0.dmg
 name: Release DMG (unsigned, manual)
 
 on:
@@ -20,6 +20,6 @@ jobs:
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          files: build/Sokki-*.dmg
+          files: build/Brefly-*.dmg
           draft: true
           generate_release_notes: true
