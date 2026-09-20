@@ -4,7 +4,7 @@ import AVFoundation
 import Speech
 import Carbon.HIToolbox
 
-// MARK: - 첫 실행 설치 안내 (시안: Sokki Onboarding.dc.html)
+// MARK: - 첫 실행 설치 안내 (시안: Brefly Onboarding.dc.html)
 //
 // 권한을 한 화면에 하나씩 요청한다. macOS 권한 창은 앱이 띄우기만 할 뿐 결과를 못 바꾸고,
 // 한 번 거부하면 다시 뜨지 않으며, 손쉬운 사용은 시스템 창 자체가 없어 설정 앱으로 보내야 한다.
@@ -152,7 +152,7 @@ final class OnboardingModel: ObservableObject {
     func finish() {
         if !previewMode {
             Prefs.onboarded = true
-            NotificationCenter.default.post(name: .sokkiPrefsChanged, object: nil)
+            NotificationCenter.default.post(name: .breflyPrefsChanged, object: nil)
         }
         onFinish?()
     }
@@ -307,7 +307,7 @@ final class OnboardingModel: ObservableObject {
         if !previewMode {
             Prefs.hotKeyIndex = i
             Prefs.customHotKey = nil
-            NotificationCenter.default.post(name: .sokkiPrefsChanged, object: nil)
+            NotificationCenter.default.post(name: .breflyPrefsChanged, object: nil)
         }
     }
 
@@ -316,7 +316,7 @@ final class OnboardingModel: ObservableObject {
         apply(combo)
         if !previewMode {
             Prefs.customHotKey = combo
-            NotificationCenter.default.post(name: .sokkiPrefsChanged, object: nil)
+            NotificationCenter.default.post(name: .breflyPrefsChanged, object: nil)
         }
     }
 
@@ -331,7 +331,7 @@ final class OnboardingModel: ObservableObject {
         recording = true
         heldModifiers = ""
         maxHeld = 0
-        NotificationCenter.default.post(name: .sokkiHotKeyCaptureBegan, object: nil)
+        NotificationCenter.default.post(name: .breflyHotKeyCaptureBegan, object: nil)
 
         let keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self else { return event }
@@ -366,7 +366,7 @@ final class OnboardingModel: ObservableObject {
         monitors = []
         recording = false
         heldModifiers = ""
-        NotificationCenter.default.post(name: .sokkiHotKeyCaptureEnded, object: nil)
+        NotificationCenter.default.post(name: .breflyHotKeyCaptureEnded, object: nil)
     }
 
     // MARK: 5 붙여넣기 · 손쉬운 사용
@@ -526,7 +526,7 @@ struct OnboardingView: View {
     private var header: some View {
         HStack(spacing: 9) {
             LogoMark(size: 18, dot: .coralDeep)
-            Text("Sokki 시작하기").font(.system(size: 13, weight: .bold)).foregroundColor(.ink)
+            Text("Brefly 시작하기").font(.system(size: 13, weight: .bold)).foregroundColor(.ink)
             Spacer()
             HStack(spacing: 5) {
                 ForEach(0..<model.stepCount, id: \.self) { i in
@@ -632,7 +632,7 @@ private struct MicStep: View {
             case .denied:
                 PermissionBadge(state: .denied, icon: "mic.slash")
                 Text("마이크가 꺼져 있습니다").font(.system(size: 21, weight: .heavy)).foregroundColor(.ink)
-                DeniedBox("시스템 설정 > 개인정보 보호 및 보안 > 마이크에서\nSokki 를 켜 주세요")
+                DeniedBox("시스템 설정 > 개인정보 보호 및 보안 > 마이크에서\nBrefly 를 켜 주세요")
                 HStack(spacing: 8) {
                     WizardButton("시스템 설정 열기", style: .primary) { SystemSettings.open(.microphone) }
                     WizardButton("다시 확인", style: .outline) { model.refreshMic() }
@@ -676,7 +676,7 @@ private struct SpeechStep: View {
                         Image(systemName: "waveform.slash").font(.system(size: 20)).foregroundColor(.coralDeep).frame(width: 26)
                         VStack(alignment: .leading, spacing: 2) {
                             Text("음성 인식이 꺼져 있습니다").font(.system(size: 13.5, weight: .bold)).foregroundColor(.ink)
-                            Text("시스템 설정 > 개인정보 보호 및 보안 > 음성 인식에서 Sokki 를 켜 주세요")
+                            Text("시스템 설정 > 개인정보 보호 및 보안 > 음성 인식에서 Brefly 를 켜 주세요")
                                 .font(.system(size: 12)).foregroundColor(.text2)
                         }
                         Spacer()
@@ -1020,7 +1020,7 @@ private struct PasteStep: View {
             if waiting {
                 VStack(alignment: .leading, spacing: 9) {
                     NumberedRow(1) { WizardButton("시스템 설정 열기", style: .primary, small: true) { model.openAccessibilitySettings() } }
-                    NumberedRow(2) { Text("목록에서 Sokki 스위치를 켭니다") }
+                    NumberedRow(2) { Text("목록에서 Brefly 스위치를 켭니다") }
                     NumberedRow(3) {
                         HStack(spacing: 8) {
                             Text("돌아오면 자동으로 확인됩니다")

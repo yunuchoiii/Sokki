@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// `Sokki --render-previews <dir>` 로 실행하면 팝오버 각 상태와 아이콘을 PNG로 저장하고 끝난다.
+/// `Brefly --render-previews <dir>` 로 실행하면 팝오버 각 상태와 아이콘을 PNG로 저장하고 끝난다.
 /// 실제 NSHostingView로 그리므로 팝오버에 뜨는 화면과 같은 코드 경로다. 화면 확인·시안 대조용.
 enum PreviewRenderer {
 
@@ -101,7 +101,7 @@ enum PreviewRenderer {
         write(render(AdvancedPane(model: settings).padding(20).frame(width: 620).background(Color.paperSoft)),
               to: dir.appendingPathComponent("2-settings-advanced-full.png"))
 
-        // 설치 안내 (시안 Sokki Onboarding.dc.html 의 아트보드 이름을 그대로 쓴다)
+        // 설치 안내 (시안 Brefly Onboarding.dc.html 의 아트보드 이름을 그대로 쓴다)
         func wizard(_ name: String, dark: Bool = false, apple: AppleClient.Status = .available, _ setup: (OnboardingModel) -> Void) {
             let m = OnboardingModel(previewMode: true, appleStatus: apple)
             setup(m)
@@ -136,7 +136,7 @@ enum PreviewRenderer {
         let strip = HStack(spacing: 24) {
             ForEach([10.0, 30.0, 44.0, 60.0, 70.0, 85.0], id: \.self) { f in
                 VStack(spacing: 6) {
-                    SokkiLoader(size: 56, fixedFrame: f)
+                    BreflyLoader(size: 56, fixedFrame: f)
                     Text("\(Int(f))f").font(.system(size: 10)).foregroundColor(.text3)
                 }
             }
@@ -194,7 +194,7 @@ enum PreviewRenderer {
 }
 
 
-/// DMG 를 열었을 때 보이는 안내 배경. 왼쪽 자리에 Sokki, 오른쪽 자리에 Applications 아이콘이 놓인다.
+/// DMG 를 열었을 때 보이는 안내 배경. 왼쪽 자리에 Brefly, 오른쪽 자리에 Applications 아이콘이 놓인다.
 struct DMGBackground: View {
     static let size = CGSize(width: 660, height: 400)
     static let leftCenter = CGPoint(x: 165, y: 190)
@@ -207,9 +207,9 @@ struct DMGBackground: View {
             VStack(spacing: 6) {
                 HStack(spacing: 8) {
                     LogoMark(size: 22, wave: .inkFixed, dot: .coral)
-                    Text("Sokki").font(.system(size: 17, weight: .bold)).foregroundColor(.inkFixed)
+                    Text("Brefly").font(.system(size: 17, weight: .bold)).foregroundColor(.inkFixed)
                 }
-                Text("Sokki 를 Applications 폴더로 끌어 넣으세요")
+                Text("Brefly 를 Applications 폴더로 끌어 넣으세요")
                     .font(.system(size: 15, weight: .semibold)).foregroundColor(Color(nsColor: Theme.text2))
             }
             .position(x: Self.size.width / 2, y: 62)

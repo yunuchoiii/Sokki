@@ -131,7 +131,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private var phaseObserver: AnyCancellable?
 
     let settings = SettingsWindowController()
-    /// 첫 실행 설치 안내. 권한을 한 화면에 하나씩 요청한다 (시안 Sokki Onboarding.dc.html).
+    /// 첫 실행 설치 안내. 권한을 한 화면에 하나씩 요청한다 (시안 Brefly Onboarding.dc.html).
     let onboarding = OnboardingWindowController()
 
     /// 요약 요청 세대. 취소하면 올려서 늦게 오는 결과를 버린다.
@@ -149,8 +149,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private var lastSpeechAt: Date?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        Log.write("=== Sokki 시작 === 로그: \(Log.url.path)")
-        Prefs.migrateFromSokgiIfNeeded()
+        Log.write("=== Brefly 시작 === 로그: \(Log.url.path)")
+        Prefs.migrateFromPreviousNamesIfNeeded()
 
         NSApp.applicationIconImage = Logo.appIcon()
 
@@ -173,15 +173,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             self?.updatePopoverBackground(for: phase)
             self?.applyPopoverStickiness(for: phase)
         }
-        NotificationCenter.default.addObserver(forName: .sokkiPrefsChanged, object: nil, queue: .main) { [weak self] _ in
+        NotificationCenter.default.addObserver(forName: .breflyPrefsChanged, object: nil, queue: .main) { [weak self] _ in
             self?.prefsChanged()
         }
         // 단축키를 녹음하는 동안엔 전역 핫키를 풀어 둔다. 같은 조합을 누르면 녹음이 켜져 버린다.
-        NotificationCenter.default.addObserver(forName: .sokkiHotKeyCaptureBegan, object: nil, queue: .main) { _ in
+        NotificationCenter.default.addObserver(forName: .breflyHotKeyCaptureBegan, object: nil, queue: .main) { _ in
             HotKey.unregister()
             ModifierHotKey.unregister()
         }
-        NotificationCenter.default.addObserver(forName: .sokkiHotKeyCaptureEnded, object: nil, queue: .main) { [weak self] _ in
+        NotificationCenter.default.addObserver(forName: .breflyHotKeyCaptureEnded, object: nil, queue: .main) { [weak self] _ in
             self?.registerHotKey()
             self?.model.refreshPrefs()
         }
@@ -272,7 +272,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             let ok = ModifierHotKey.register(combo, action: action)
             Log.write("수정자 단축키 \(combo.title) 등록: \(ok)")
             if !ok {
-                fail("단축키 \(combo.title) 는 손쉬운 사용 권한이 있어야 동작합니다.\n\n시스템 설정 > 개인정보 보호 및 보안 > 손쉬운 사용에서 Sokki를 켜 주세요. 권한이 켜지면 자동으로 다시 등록합니다.")
+                fail("단축키 \(combo.title) 는 손쉬운 사용 권한이 있어야 동작합니다.\n\n시스템 설정 > 개인정보 보호 및 보안 > 손쉬운 사용에서 Brefly를 켜 주세요. 권한이 켜지면 자동으로 다시 등록합니다.")
                 startTrustWatcher()
             }
             return
@@ -532,7 +532,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             return
         }
 
-        // 팝오버 버튼을 눌러 끝냈다면 Sokki가 앞에 있다. 숨겨서 원래 앱으로 초점을 돌려준다.
+        // 팝오버 버튼을 눌러 끝냈다면 Brefly가 앞에 있다. 숨겨서 원래 앱으로 초점을 돌려준다.
         let delay: TimeInterval
         if NSApp.isActive {
             popover.performClose(nil)
@@ -576,7 +576,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         let appMenu = NSMenu()
         appMenu.addItem(withTitle: "설정…", action: #selector(openSettingsWindow), keyEquivalent: ",")
         appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: "Sokki 종료", action: #selector(quitApp), keyEquivalent: "q")
+        appMenu.addItem(withTitle: "Brefly 종료", action: #selector(quitApp), keyEquivalent: "q")
         appItem.submenu = appMenu
         main.addItem(appItem)
 
@@ -822,7 +822,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             NSApp.activate(ignoringOtherApps: true)
             let alert = NSAlert()
             alert.alertStyle = .warning
-            alert.messageText = "Sokki"
+            alert.messageText = "Brefly"
             alert.informativeText = message
             alert.addButton(withTitle: "확인")
             alert.addButton(withTitle: "로그 열기")
@@ -1198,12 +1198,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             return
         }
         guard Paster.isTrusted else {
-            fail("접근성 권한이 없어 자동 붙여넣기를 할 수 없습니다.\n시스템 설정 > 개인정보 보호 및 보안 > 손쉬운 사용에서 Sokki를 켜세요.")
+            fail("접근성 권한이 없어 자동 붙여넣기를 할 수 없습니다.\n시스템 설정 > 개인정보 보호 및 보안 > 손쉬운 사용에서 Brefly를 켜세요.")
             return
         }
         setState(.idle, message: "3초 뒤 붙여넣습니다 — 텍스트 필드를 클릭하세요.")
         DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-            Paster.paste("Sokki 붙여넣기 테스트", restoreClipboard: Prefs.restoreClipboard)
+            Paster.paste("Brefly 붙여넣기 테스트", restoreClipboard: Prefs.restoreClipboard)
         }
     }
 
@@ -1298,7 +1298,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
         NSApp.activate(ignoringOtherApps: true)
         let alert = NSAlert()
-        alert.messageText = "Sokki 진단"
+        alert.messageText = "Brefly 진단"
         alert.informativeText = info
         alert.addButton(withTitle: "복사")
         alert.addButton(withTitle: "닫기")
@@ -1319,7 +1319,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             alert.alertStyle = .warning
             alert.messageText = "macOS 받아쓰기를 켜 주세요"
             alert.informativeText = """
-                Sokki는 애플 음성 인식 엔진을 씁니다. 시스템의 받아쓰기 기능이 꺼져 있으면 \
+                Brefly는 애플 음성 인식 엔진을 씁니다. 시스템의 받아쓰기 기능이 꺼져 있으면 \
                 온디바이스든 서버든 인식이 되지 않습니다.
 
                 시스템 설정 > 키보드 > 받아쓰기를 켜고,
@@ -1361,9 +1361,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         alert.informativeText = """
             커서 위치에 텍스트를 자동으로 붙여 넣으려면 접근성 권한이 필요합니다.
 
-            시스템 설정 > 개인정보 보호 및 보안 > 손쉬운 사용에서 Sokki를 켜 주세요.
+            시스템 설정 > 개인정보 보호 및 보안 > 손쉬운 사용에서 Brefly를 켜 주세요.
 
-            목록에 Sokki가 안 보이면 '+' 버튼을 누르고 ⌘⇧G로 아래 경로를 붙여넣어 직접 추가하세요:
+            목록에 Brefly가 안 보이면 '+' 버튼을 누르고 ⌘⇧G로 아래 경로를 붙여넣어 직접 추가하세요:
             \(Bundle.main.bundlePath)
 
             권한 없이도 결과는 클립보드에 복사되니 ⌘V로 붙여넣을 수 있습니다.

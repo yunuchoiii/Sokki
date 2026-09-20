@@ -9,20 +9,20 @@
 #   몇 번을 다시 빌드해도 권한이 유지된다.
 #
 # 이 스크립트가 하는 일 (전부 로그인 키체인 안에서만):
-#   1. 자체 서명 코드서명 인증서 "Sokki Dev"를 만든다 (유효기간 10년)
+#   1. 자체 서명 코드서명 인증서 "Brefly Dev"를 만든다 (유효기간 10년)
 #   2. 로그인 키체인에 넣고 codesign이 쓸 수 있게 허용한다
 #   3. 그 인증서를 '코드 서명 용도로만' 신뢰하도록 표시한다
 #      → 이 단계에서 맥 로그인 암호를 물어본다
 #
-# 되돌리려면: 키체인 접근 앱에서 "Sokki Dev" 인증서를 삭제하면 끝.
+# 되돌리려면: 키체인 접근 앱에서 "Brefly Dev" 인증서를 삭제하면 끝.
 #
 # 손으로 하고 싶으면 이 스크립트 대신:
 #   키체인 접근 > 메뉴 '인증서 지원' > '인증서 생성'
-#   이름 "Sokki Dev", 신원 유형 '자체 서명 루트', 인증서 유형 '코드 서명'
+#   이름 "Brefly Dev", 신원 유형 '자체 서명 루트', 인증서 유형 '코드 서명'
 
 set -euo pipefail
 
-NAME="Sokki Dev"
+NAME="Brefly Dev"
 
 if security find-identity -v -p codesigning | grep -q "Sokgi Dev"; then
   echo "✅ 예전 이름의 'Sokgi Dev' 인증서가 있습니다. build.sh 가 그대로 씁니다."
@@ -60,16 +60,16 @@ openssl req -x509 -newkey rsa:2048 -nodes -days 3650 \
 # "MAC verification failed" 로 거부한다. SHA1-3DES 로 명시해야 들어간다.
 openssl pkcs12 -export -out "$TMP/id.p12" \
   -inkey "$TMP/key.pem" -in "$TMP/cert.pem" \
-  -name "$NAME" -passout pass:sokki \
+  -name "$NAME" -passout pass:brefly \
   -keypbe PBE-SHA1-3DES -certpbe PBE-SHA1-3DES -macalg sha1 2>/dev/null \
 || openssl pkcs12 -export -legacy -out "$TMP/id.p12" \
   -inkey "$TMP/key.pem" -in "$TMP/cert.pem" \
-  -name "$NAME" -passout pass:sokki 2>/dev/null
+  -name "$NAME" -passout pass:brefly 2>/dev/null
 
 KEYCHAIN="$HOME/Library/Keychains/login.keychain-db"
 
 echo "▶ 로그인 키체인에 등록 중…"
-security import "$TMP/id.p12" -k "$KEYCHAIN" -P sokki -T /usr/bin/codesign
+security import "$TMP/id.p12" -k "$KEYCHAIN" -P brefly -T /usr/bin/codesign
 
 echo "▶ 코드 서명 용도로 신뢰 설정 중… (맥 로그인 암호를 물어봅니다)"
 security add-trusted-cert -r trustRoot -p codeSign -k "$KEYCHAIN" "$TMP/cert.pem"
@@ -86,6 +86,6 @@ if security find-identity -v -p codesigning | grep -q "$NAME"; then
   echo "     ./build.sh --install --reset-perms"
 else
   echo "⚠️ 인증서는 만들어졌지만 codesign이 아직 인식하지 못합니다."
-  echo "   키체인 접근 앱에서 'Sokki Dev'를 더블클릭 →"
+  echo "   키체인 접근 앱에서 'Brefly Dev'를 더블클릭 →"
   echo "   '신뢰' 섹션 → '코드 서명'을 '항상 신뢰'로 바꿔 주세요."
 fi

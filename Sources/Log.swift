@@ -1,13 +1,13 @@
 import Foundation
 
-/// 터미널(stderr)과 ~/Library/Logs/Sokki.log 양쪽에 남긴다.
+/// 터미널(stderr)과 ~/Library/Logs/Brefly.log 양쪽에 남긴다.
 enum Log {
 
     static let url: URL = {
         let dir = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Library/Logs", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir.appendingPathComponent("Sokki.log")
+        return dir.appendingPathComponent("Brefly.log")
     }()
 
     private static let formatter: DateFormatter = {
@@ -16,7 +16,7 @@ enum Log {
         return f
     }()
 
-    private static let queue = DispatchQueue(label: "sokki.log")
+    private static let queue = DispatchQueue(label: "brefly.log")
 
     static func write(_ message: String) {
         let line = "[\(formatter.string(from: Date()))] \(message)\n"

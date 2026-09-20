@@ -43,7 +43,7 @@ struct IdleView: View {
             HStack(spacing: 10) {
                 LogoMark(size: 26)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Sokki").font(.system(size: 15, weight: .bold)).foregroundColor(.ink)
+                    Text("Brefly").font(.system(size: 15, weight: .bold)).foregroundColor(.ink)
                     Text(model.micReady ? "대기 중 · 마이크 준비됨" : "마이크 권한이 필요해요")
                         .font(.system(size: 12)).foregroundColor(.text2)
                 }
@@ -247,7 +247,7 @@ struct PolishingView: View {
 
     var body: some View {
         VStack(spacing: 10) {
-            SokkiLoader(size: 56)
+            BreflyLoader(size: 56)
                 .padding(.bottom, 2)
             Text("요약하고 있어요").font(.system(size: 14, weight: .semibold)).foregroundColor(.ink)
             Text(model.polishNote.isEmpty ? model.backendTitle : model.polishNote)

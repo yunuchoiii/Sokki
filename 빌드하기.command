@@ -1,13 +1,13 @@
 #!/bin/bash
-# 더블클릭하면 Sokki를 빌드해서 /Applications 에 설치하고 실행한다.
+# 더블클릭하면 Brefly를 빌드해서 /Applications 에 설치하고 실행한다.
 # 터미널에 아무것도 안 쳐도 된다.
 
 cd "$(dirname "${BASH_SOURCE[0]}")" || exit 1
 SRC="$(pwd)"
-DEST="$HOME/Sokki"
+DEST="$HOME/Brefly"
 
 echo "══════════════════════════════════"
-echo "  Sokki 빌드"
+echo "  Brefly 빌드"
 echo "══════════════════════════════════"
 echo ""
 
@@ -23,7 +23,7 @@ fi
 
 # 소스를 홈 폴더로 복사 (이 폴더는 대화가 끝나면 사라질 수 있음)
 if [[ "$SRC" != "$DEST" ]]; then
-  echo "▶ 소스를 ~/Sokki 로 복사 중…"
+  echo "▶ 소스를 ~/Brefly 로 복사 중…"
   rm -rf "$DEST"
   mkdir -p "$DEST"
   cp -R "$SRC/." "$DEST/"
@@ -33,7 +33,7 @@ cd "$DEST" || exit 1
 chmod +x ./*.sh ./*.command 2>/dev/null
 
 # 빌드 출력을 로그로도 남긴다. 실패하면 Claude가 직접 읽고 원인을 잡을 수 있다.
-BUILD_LOG="$HOME/Library/Logs/Sokki-build.log"
+BUILD_LOG="$HOME/Library/Logs/Brefly-build.log"
 mkdir -p "$HOME/Library/Logs"
 
 echo ""
@@ -55,7 +55,7 @@ else
   echo "  ❌ 빌드 실패"
   echo ""
   echo "  전체 내용이 여기에 저장됐습니다:"
-  echo "    ~/Library/Logs/Sokki-build.log"
+  echo "    ~/Library/Logs/Brefly-build.log"
   echo ""
   echo "  Claude에게 '빌드 실패했어' 라고만 하면"
   echo "  이 로그를 직접 읽고 고칩니다."
