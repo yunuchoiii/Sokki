@@ -207,13 +207,13 @@ struct LogoMark: View {
     }
 }
 
-// MARK: - 로더 (sokki-loader.json 로띠를 SwiftUI 로 옮김)
+// MARK: - 로더 (brefly-loader.json 로띠를 SwiftUI 로 옮김)
 //
 // 120×120, 30fps, 96프레임 루프. 우리 로고 경로를 3.75배 한 좌표라 LogoWave 를 그대로 쓴다.
 //   파형: trim end 0→100 (0~35f), trim start 0→100 (55~75f)
 //   점:   불투명도 0→100 (37~45f), 100→0 (80~90f) · 크기 0→130% (37~49f) →100% (49~55f) →0 (80~90f)
 
-struct SokkiLoader: View {
+struct BreflyLoader: View {
     var size: CGFloat = 56
     var wave: Color = .ink
     var dot: Color = .coral

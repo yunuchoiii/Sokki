@@ -1,21 +1,21 @@
 #!/bin/bash
-# Sokki 빌드 스크립트 — Xcode 프로젝트 없이 swiftc로 .app 번들을 만든다.
+# Brefly 빌드 스크립트 — Xcode 프로젝트 없이 swiftc로 .app 번들을 만든다.
 #
-#   ./build.sh                            빌드만 (build/Sokki.app)
+#   ./build.sh                            빌드만 (build/Brefly.app)
 #   ./build.sh --install                  /Applications 에 설치하고 실행
 #   ./build.sh --install --reset-perms    설치 전에 낡은 권한 기록을 지운다
 #
 # 서명 인증서는 자동으로 찾는다:
-#   "Sokki Dev" 인증서가 있으면 그걸 쓰고 (재빌드해도 권한 유지)
+#   "Brefly Dev" 인증서가 있으면 그걸 쓰고 (재빌드해도 권한 유지)
 #   없으면 애드혹 서명으로 떨어진다 (재빌드마다 권한 재설정 필요)
 #   → ./setup-signing.sh 를 한 번 실행해 두면 이 문제가 사라진다
 set -euo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-APP="$DIR/build/Sokki.app"
-DEST="/Applications/Sokki.app"
-BUNDLE_ID="com.sokki.dictation"
-CERT_NAME="Sokki Dev"
+APP="$DIR/build/Brefly.app"
+DEST="/Applications/Brefly.app"
+BUNDLE_ID="com.brefly.dictation"
+CERT_NAME="Brefly Dev"
 OLD_CERT_NAME="Sokgi Dev"   # 이름 바꾸기 전에 만든 인증서도 그대로 쓴다
 
 INSTALL=0
@@ -83,7 +83,7 @@ swiftc \
   -framework Security \
   -framework ServiceManagement \
   -Xlinker -weak_framework -Xlinker FoundationModels \
-  -o "$APP/Contents/MacOS/Sokki" \
+  -o "$APP/Contents/MacOS/Brefly" \
   "$DIR/Sources/"*.swift
 
 # --- 앱 아이콘 -------------------------------------------------------------
@@ -91,7 +91,7 @@ swiftc \
 echo "▶ 앱 아이콘 생성 중…"
 ICONSET="$DIR/build/AppIcon.iconset"
 rm -rf "$ICONSET"
-"$APP/Contents/MacOS/Sokki" --render-icon "$ICONSET" 2>/dev/null
+"$APP/Contents/MacOS/Brefly" --render-icon "$ICONSET" 2>/dev/null
 iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
 rm -rf "$ICONSET"
 
@@ -100,7 +100,7 @@ if [[ $DISTRIBUTION -eq 1 ]]; then
   echo "▶ Developer ID 로 서명 중… (하드닝 런타임 · 공증 가능)"
   codesign --force --sign "$SIGN_ID" --identifier "$BUNDLE_ID" \
     --options runtime --timestamp \
-    --entitlements "$DIR/Sokki.entitlements" "$APP"
+    --entitlements "$DIR/Brefly.entitlements" "$APP"
   codesign --verify --strict --verbose=1 "$APP"
 elif [[ $STABLE -eq 1 ]]; then
   echo "▶ '$SIGN_ID' 인증서로 서명 중… (권한 유지됨)"
@@ -113,7 +113,7 @@ fi
 # --- 낡은 권한 기록 정리 ---------------------------------------------------
 # tccutil reset은 이 앱 하나의 권한 기록만 지운다. 다른 앱은 건드리지 않는다.
 if [[ $RESET_PERMS -eq 1 ]]; then
-  echo "▶ Sokki의 기존 권한 기록 삭제 중…"
+  echo "▶ Brefly의 기존 권한 기록 삭제 중…"
   tccutil reset Accessibility "$BUNDLE_ID" 2>/dev/null || true
   tccutil reset Microphone "$BUNDLE_ID" 2>/dev/null || true
   tccutil reset SpeechRecognition "$BUNDLE_ID" 2>/dev/null || true
@@ -123,7 +123,7 @@ fi
 # --- 설치 -----------------------------------------------------------------
 if [[ $INSTALL -eq 1 ]]; then
   echo "▶ /Applications 에 설치 중…"
-  pkill -x Sokki 2>/dev/null || true
+  pkill -x Brefly 2>/dev/null || true
   pkill -x Sokgi 2>/dev/null || true
   sleep 0.5
   rm -rf "$DEST" /Applications/Sokgi.app
@@ -152,9 +152,9 @@ fi
 cat <<EOF
 ── 실행과 권한 ────────────────────────────────────────────
 실행:      open "$FINAL"
-로그:      tail -f ~/Library/Logs/Sokki.log
+로그:      tail -f ~/Library/Logs/Brefly.log
 
-터미널에서 Contents/MacOS/Sokki 를 직접 실행하지 마세요.
+터미널에서 Contents/MacOS/Brefly 를 직접 실행하지 마세요.
 권한 주체가 터미널이 되어 붙여넣기가 동작하지 않습니다.
 
 권한이 꼬였을 때:   ./build.sh --install --reset-perms

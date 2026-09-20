@@ -1,7 +1,7 @@
 import Foundation
 import AppKit
 
-/// API 키는 ~/Library/Application Support/Sokki/keys.json (0600) 에, 나머지 설정은 UserDefaults 에.
+/// API 키는 ~/Library/Application Support/Brefly/keys.json (0600) 에, 나머지 설정은 UserDefaults 에.
 ///
 /// 원래는 키체인이었다. 자체 서명 앱은 빌드마다(심지어 고정 인증서로 바꾼 뒤에도) 키체인 항목을 읽을 때
 /// 암호 창이 떴고 "항상 허용"도 안 남았다 (2026-09-04). 개인 도구라 본인만 읽는 파일로 충분하다.
@@ -24,13 +24,13 @@ enum KeychainStore {
 
     static let fileURL: URL = {
         let dir = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Application Support/Sokki", isDirectory: true)
+            .appendingPathComponent("Library/Application Support/Brefly", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true,
                                                  attributes: [.posixPermissions: 0o700])
         return dir.appendingPathComponent("keys.json")
     }()
 
-    static var storageDescription: String { "~/Library/Application Support/Sokki/keys.json (본인만 읽기)" }
+    static var storageDescription: String { "~/Library/Application Support/Brefly/keys.json (본인만 읽기)" }
 
     private static let lock = NSLock()
     private static var loaded: [String: String]?
@@ -83,34 +83,37 @@ enum Prefs {
 
     private static let d = UserDefaults.standard
 
-    /// 앱 이름을 Sokgi → Sokki 로 바꾸면서 번들 ID 가 바뀌었다 (2026-09-04).
-    /// 예전 도메인의 설정·기록과 키 파일을 한 번만 옮겨온다.
-    static func migrateFromSokgiIfNeeded() {
-        let flag = "migratedFromSokgi"
+    /// 앱 이름이 바뀌면서 번들 ID 도 바뀌었다. Sokgi → Sokki (2026-09-04), Sokki → Brefly (2026-09-20).
+    /// 예전 도메인의 설정·기록과 키 파일을 한 번만 옮겨온다. 오래된 것부터 차례로 훑어 중간 단계를 건너뛴 사용자도 챙긴다.
+    static func migrateFromPreviousNamesIfNeeded() {
+        let flag = "migratedToBrefly"
         guard !d.bool(forKey: flag) else { return }
         d.set(true, forKey: flag)
 
-        if let old = UserDefaults(suiteName: "com.sokgi.dictation") {
-            var count = 0
-            for (key, value) in old.dictionaryRepresentation() where d.object(forKey: key) == nil {
-                // 시스템이 넣는 키(AppleLanguages 등)는 건너뛴다
-                if key.hasPrefix("Apple") || key.hasPrefix("NS") || key.hasPrefix("com.apple") { continue }
-                d.set(value, forKey: key)
-                count += 1
-            }
-            if count > 0 { Log.write("Sokgi 설정 \(count)개 이전") }
-        }
-
         let fm = FileManager.default
         let support = fm.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support")
-        let oldKeys = support.appendingPathComponent("Sokgi/keys.json")
-        let newKeys = support.appendingPathComponent("Sokki/keys.json")
-        if fm.fileExists(atPath: oldKeys.path), !fm.fileExists(atPath: newKeys.path) {
-            try? fm.createDirectory(at: newKeys.deletingLastPathComponent(), withIntermediateDirectories: true,
-                                    attributes: [.posixPermissions: 0o700])
-            if (try? fm.copyItem(at: oldKeys, to: newKeys)) != nil {
-                try? fm.setAttributes([.posixPermissions: 0o600], ofItemAtPath: newKeys.path)
-                Log.write("Sokgi 키 파일 이전")
+        let newKeys = support.appendingPathComponent("Brefly/keys.json")
+
+        // 최근 것부터 본다. 먼저 찾은 쪽이 더 최신 설정이다.
+        for (domain, folder) in [("com.sokki.dictation", "Sokki"), ("com.sokgi.dictation", "Sokgi")] {
+            if let old = UserDefaults(suiteName: domain) {
+                var count = 0
+                for (key, value) in old.dictionaryRepresentation() where d.object(forKey: key) == nil {
+                    // 시스템이 넣는 키(AppleLanguages 등)는 건너뛴다
+                    if key.hasPrefix("Apple") || key.hasPrefix("NS") || key.hasPrefix("com.apple") { continue }
+                    d.set(value, forKey: key)
+                    count += 1
+                }
+                if count > 0 { Log.write("\(folder) 설정 \(count)개 이전") }
+            }
+            let oldKeys = support.appendingPathComponent("\(folder)/keys.json")
+            if fm.fileExists(atPath: oldKeys.path), !fm.fileExists(atPath: newKeys.path) {
+                try? fm.createDirectory(at: newKeys.deletingLastPathComponent(), withIntermediateDirectories: true,
+                                        attributes: [.posixPermissions: 0o700])
+                if (try? fm.copyItem(at: oldKeys, to: newKeys)) != nil {
+                    try? fm.setAttributes([.posixPermissions: 0o600], ofItemAtPath: newKeys.path)
+                    Log.write("\(folder) 키 파일 이전")
+                }
             }
         }
     }

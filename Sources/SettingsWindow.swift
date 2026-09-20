@@ -8,9 +8,9 @@ import Carbon.HIToolbox
 
 extension Notification.Name {
     /// 설정 창에서 값이 바뀌면 AppDelegate 가 단축키 재등록·팝오버 갱신을 한다.
-    static let sokkiPrefsChanged = Notification.Name("sokkiPrefsChanged")
-    static let sokkiHotKeyCaptureBegan = Notification.Name("sokkiHotKeyCaptureBegan")
-    static let sokkiHotKeyCaptureEnded = Notification.Name("sokkiHotKeyCaptureEnded")
+    static let breflyPrefsChanged = Notification.Name("breflyPrefsChanged")
+    static let breflyHotKeyCaptureBegan = Notification.Name("breflyHotKeyCaptureBegan")
+    static let breflyHotKeyCaptureEnded = Notification.Name("breflyHotKeyCaptureEnded")
 }
 
 /// Prefs 를 SwiftUI 가 관찰할 수 있게 감싼다. 값을 바꾸면 곧바로 Prefs 에 쓴다.
@@ -99,7 +99,7 @@ final class SettingsModel: ObservableObject {
     }
     var actions = Actions()
 
-    private func changed() { NotificationCenter.default.post(name: .sokkiPrefsChanged, object: nil) }
+    private func changed() { NotificationCenter.default.post(name: .breflyPrefsChanged, object: nil) }
 
     func refresh() {
         accessibilityTrusted = Paster.isTrusted
@@ -133,7 +133,7 @@ final class SettingsModel: ObservableObject {
     var appVersion: String {
         let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
         let b = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"
-        return "Sokki \(v) (\(b))"
+        return "Brefly \(v) (\(b))"
     }
 }
 
@@ -148,7 +148,7 @@ final class SettingsWindowController {
         if window == nil {
             let host = NSHostingController(rootView: SettingsView(model: model))
             let w = NSWindow(contentViewController: host)
-            w.title = "Sokki 설정"
+            w.title = "Brefly 설정"
             w.styleMask = [.titled, .closable, .miniaturizable]
             w.titlebarAppearsTransparent = false
             w.isReleasedWhenClosed = false
@@ -291,12 +291,12 @@ struct GeneralPane: View {
             }
 
             SettingsSection(nil) {
-                SettingsRow(title: "로그인 시 Sokki 자동 실행",
+                SettingsRow(title: "로그인 시 Brefly 자동 실행",
                             subtitle: model.launchAtLoginError.isEmpty ? nil : nil,
                             warning: model.launchAtLoginError.isEmpty ? nil : model.launchAtLoginError) {
                     InkToggle(isOn: Binding(get: { model.launchAtLogin }, set: { model.setLaunchAtLogin($0) }))
                 }
-                SettingsRow(title: "Dock 에 Sokki 표시",
+                SettingsRow(title: "Dock 에 Brefly 표시",
                             subtitle: "Dock 아이콘을 누르면 메뉴바 아이콘처럼 창이 열립니다. 끄면 메뉴바에만 남습니다.",
                             last: true) {
                     InkToggle(isOn: $model.showInDock)
@@ -586,7 +586,7 @@ struct UpdatesPane: View {
                 ActionRow("업데이트 확인", "지금 버전은 \(model.appVersion) 입니다. GitHub 에 새 버전이 있으면 바뀐 점과 다운로드 버튼을 보여 줍니다.",
                           action: model.actions.checkForUpdates)
                 ActionRow("바뀐 점 보기", "지금까지 나온 버전과 바뀐 점을 GitHub 릴리스 페이지에서 봅니다.", action: {
-                    if let url = URL(string: "https://github.com/yunuchoiii/Sokki/releases") { NSWorkspace.shared.open(url) }
+                    if let url = URL(string: "https://github.com/yunuchoiii/brefly/releases") { NSWorkspace.shared.open(url) }
                 }, last: true)
             }
             SettingsSection("자동 확인") {
@@ -598,11 +598,11 @@ struct UpdatesPane: View {
             }
             SettingsSection("설치 방법") {
                 SettingsRow(title: "다운로드 → Applications 로 끌어 넣기",
-                            subtitle: "다운로드를 누르면 DMG 를 받습니다. 열어서 Sokki 를 Applications 폴더에 끌어 넣으면 덮어써지고, 설정과 권한은 그대로 유지됩니다.",
+                            subtitle: "다운로드를 누르면 DMG 를 받습니다. 열어서 Brefly 를 Applications 폴더에 끌어 넣으면 덮어써지고, 설정과 권한은 그대로 유지됩니다.",
                             last: true) { EmptyView() }
             }
             SettingsSection("후원") {
-                ActionRow("커피 한 잔으로 응원하기", "Sokki 는 무료입니다. 도움이 됐다면 GitHub Sponsors 로 응원해 주세요.", action: {
+                ActionRow("커피 한 잔으로 응원하기", "Brefly 는 무료입니다. 도움이 됐다면 GitHub Sponsors 로 응원해 주세요.", action: {
                     if let url = URL(string: "https://github.com/sponsors/yunuchoiii") { NSWorkspace.shared.open(url) }
                 }, last: true)
             }
@@ -857,7 +857,7 @@ struct HotKeyRecorderField: View {
         recording = true
         heldModifiers = ""
         maxHeld = 0
-        NotificationCenter.default.post(name: .sokkiHotKeyCaptureBegan, object: nil)
+        NotificationCenter.default.post(name: .breflyHotKeyCaptureBegan, object: nil)
 
         let keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             if event.keyCode == UInt16(kVK_Escape) {
@@ -897,7 +897,7 @@ struct HotKeyRecorderField: View {
         monitors = []
         recording = false
         heldModifiers = ""
-        NotificationCenter.default.post(name: .sokkiHotKeyCaptureEnded, object: nil)
+        NotificationCenter.default.post(name: .breflyHotKeyCaptureEnded, object: nil)
     }
 }
 

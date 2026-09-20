@@ -22,9 +22,9 @@ enum UpdateChecker {
         }
     }
 
-    static let latestAPI = URL(string: "https://api.github.com/repos/yunuchoiii/Sokki/releases/latest")!
-    /// README·랜딩 페이지와 같은 바로 받기 주소. 릴리스마다 고정 이름 Sokki.dmg 를 올리는 규칙에 기댄다.
-    static let downloadURL = URL(string: "https://github.com/yunuchoiii/Sokki/releases/latest/download/Sokki.dmg")!
+    static let latestAPI = URL(string: "https://api.github.com/repos/yunuchoiii/brefly/releases/latest")!
+    /// README·랜딩 페이지와 같은 바로 받기 주소. 릴리스마다 고정 이름 Brefly.dmg 를 올리는 규칙에 기댄다.
+    static let downloadURL = URL(string: "https://github.com/yunuchoiii/brefly/releases/latest/download/Brefly.dmg")!
     static let autoCheckInterval: TimeInterval = 24 * 60 * 60
 
     static var currentVersion: String {
@@ -37,7 +37,7 @@ enum UpdateChecker {
     static func check(current: String = currentVersion, completion: @escaping (Result<Release?, Error>) -> Void) {
         var req = URLRequest(url: latestAPI)
         req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
-        req.setValue("Sokki/\(current)", forHTTPHeaderField: "User-Agent")
+        req.setValue("Brefly/\(current)", forHTTPHeaderField: "User-Agent")
         req.timeoutInterval = 10
         URLSession.shared.dataTask(with: req) { data, response, error in
             let result: Result<Release?, Error>
@@ -51,7 +51,7 @@ enum UpdateChecker {
                 let version = tag.hasPrefix("v") ? String(tag.dropFirst()) : tag
                 let release = Release(version: version, tag: tag,
                                       notes: summarize(json["body"] as? String ?? ""),
-                                      pageURL: json["html_url"] as? String ?? "https://github.com/yunuchoiii/Sokki/releases")
+                                      pageURL: json["html_url"] as? String ?? "https://github.com/yunuchoiii/brefly/releases")
                 result = .success(isNewer(version, than: current) ? release : nil)
             } else {
                 result = .failure(CheckError.noTag)
@@ -116,7 +116,7 @@ enum UpdateChecker {
             case .success(nil):
                 let alert = NSAlert()
                 alert.messageText = "최신 버전입니다"
-                alert.informativeText = "Sokki \(currentVersion) 이 가장 최근 버전입니다."
+                alert.informativeText = "Brefly \(currentVersion) 이 가장 최근 버전입니다."
                 alert.addButton(withTitle: "확인")
                 NSApp.activate(ignoringOtherApps: true)
                 alert.runModal()
@@ -134,10 +134,10 @@ enum UpdateChecker {
 
     private static func present(_ release: Release, manual: Bool) {
         let alert = NSAlert()
-        alert.messageText = "Sokki \(release.version) 이 나왔습니다"
+        alert.messageText = "Brefly \(release.version) 이 나왔습니다"
         var info = "지금 버전은 \(currentVersion) 입니다."
         if !release.notes.isEmpty { info += "\n\n바뀐 것\n" + release.notes }
-        info += "\n\n다운로드를 누르면 DMG 를 받습니다. 열어서 Sokki 를 Applications 에 끌어 넣으면 됩니다."
+        info += "\n\n다운로드를 누르면 DMG 를 받습니다. 열어서 Brefly 를 Applications 에 끌어 넣으면 됩니다."
         alert.informativeText = info
         alert.addButton(withTitle: "다운로드")
         alert.addButton(withTitle: "나중에")

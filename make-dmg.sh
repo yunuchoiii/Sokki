@@ -1,42 +1,42 @@
 #!/bin/bash
-# Sokki.dmg 를 만든다. 열면 배경 그림 위에 Sokki 아이콘(왼쪽)과 Applications(오른쪽)이 화살표로 이어진 화면이 나온다.
+# Brefly.dmg 를 만든다. 열면 배경 그림 위에 Brefly 아이콘(왼쪽)과 Applications(오른쪽)이 화살표로 이어진 화면이 나온다.
 # 배경은 앱이 그린다(--render-dmg-background). 아이콘 위치는 Finder 로 심으므로 터미널에 Finder 자동화 권한이 필요하다.
 #
-#   ./make-dmg.sh                 build/Sokki.dmg
-#   VERSION=0.2.0 ./make-dmg.sh   build/Sokki-0.2.0.dmg
+#   ./make-dmg.sh                 build/Brefly.dmg
+#   VERSION=0.2.0 ./make-dmg.sh   build/Brefly-0.2.0.dmg
 #
-# 서명: SOKGI_SIGN_ID 나 'Sokki Dev'/'Sokgi Dev' 인증서가 있으면 build.sh 가 그걸 쓴다.
+# 서명: SOKGI_SIGN_ID 나 'Brefly Dev'/'Sokgi Dev' 인증서가 있으면 build.sh 가 그걸 쓴다.
 # 애플 개발자 계정이 있으면 아래 NOTARIZE 절차를 켜서 "확인되지 않은 개발자" 경고를 없앨 수 있다.
 set -euo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-APP="$DIR/build/Sokki.app"
+APP="$DIR/build/Brefly.app"
 VERSION="${VERSION:-$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$DIR/Info.plist")}"
-DMG="$DIR/build/Sokki-$VERSION.dmg"
-RW="$DIR/build/Sokki-$VERSION-rw.dmg"
+DMG="$DIR/build/Brefly-$VERSION.dmg"
+RW="$DIR/build/Brefly-$VERSION-rw.dmg"
 STAGE="$DIR/build/dmg-stage"
 
 "$DIR/build.sh"
 
 echo "▶ DMG 구성 중…"
-# 이전에 열어 둔 Sokki 볼륨이 남아 있으면 새 이미지가 "Sokki 1" 로 붙고 Finder 배치가 엉뚱한 볼륨을 잡아 조용히 실패한다.
-if [[ -d /Volumes/Sokki ]]; then
-  echo "▶ 남아 있던 /Volumes/Sokki 를 먼저 내립니다"
-  hdiutil detach /Volumes/Sokki -quiet || hdiutil detach /Volumes/Sokki -force -quiet || true
+# 이전에 열어 둔 Brefly 볼륨이 남아 있으면 새 이미지가 "Brefly 1" 로 붙고 Finder 배치가 엉뚱한 볼륨을 잡아 조용히 실패한다.
+if [[ -d /Volumes/Brefly ]]; then
+  echo "▶ 남아 있던 /Volumes/Brefly 를 먼저 내립니다"
+  hdiutil detach /Volumes/Brefly -quiet || hdiutil detach /Volumes/Brefly -force -quiet || true
 fi
 rm -rf "$STAGE" "$DMG" "$RW"
 mkdir -p "$STAGE"
 cp -R "$APP" "$STAGE/"
 ln -s /Applications "$STAGE/Applications"
-"$APP/Contents/MacOS/Sokki" --render-dmg-background "$STAGE/.background/bg.png" >/dev/null
+"$APP/Contents/MacOS/Brefly" --render-dmg-background "$STAGE/.background/bg.png" >/dev/null
 
 # 읽기·쓰기 이미지로 만들어 Finder 로 창 크기·배경·아이콘 위치를 심은 뒤(.DS_Store) 압축한다.
-hdiutil create -volname "Sokki" -srcfolder "$STAGE" -ov -format UDRW -quiet "$RW"
+hdiutil create -volname "Brefly" -srcfolder "$STAGE" -ov -format UDRW -quiet "$RW"
 MOUNT="$(hdiutil attach -readwrite -noverify -noautoopen "$RW" | grep -oE '/Volumes/.*$' | tail -1)"
 echo "▶ Finder 배치 중… ($MOUNT)"
 osascript <<'APPLESCRIPT'
 tell application "Finder"
-  tell disk "Sokki"
+  tell disk "Brefly"
     open
     set current view of container window to icon view
     set toolbar visible of container window to false
@@ -48,7 +48,7 @@ tell application "Finder"
     set icon size of opts to 128
     set text size of opts to 13
     set background picture of opts to file ".background:bg.png"
-    set position of item "Sokki.app" of container window to {165, 190}
+    set position of item "Brefly.app" of container window to {165, 190}
     set position of item "Applications" of container window to {495, 190}
     close
     open
@@ -71,7 +71,7 @@ if [[ -n "$DEV_ID" ]]; then
   codesign --force --sign "$DEV_ID" --timestamp "$DMG"
 fi
 
-# 공증: Developer ID 로 서명됐고 notarytool 프로필 'sokki' 가 있으면 자동으로 한다. NOTARIZE=0 으로 끌 수 있다.
+# 공증: Developer ID 로 서명됐고 notarytool 프로필 'sokki'(이름 바꾸기 전에 만든 것을 그대로 쓴다) 가 있으면 자동으로 한다. NOTARIZE=0 으로 끌 수 있다.
 #   프로필 저장(한 번): xcrun notarytool store-credentials sokki --apple-id <애플ID> --team-id <팀ID>
 # (grep -q 는 파이프를 일찍 닫아 pipefail 에 걸리므로 변수로 받아 비교한다)
 SIGNATURE="$(codesign -dvv "$APP" 2>&1 || true)"
@@ -87,7 +87,7 @@ else
   echo "ℹ️  공증 생략 (Developer ID 서명 + notarytool 프로필 'sokki' 가 있어야 합니다)"
 fi
 
-# README 의 바로 받기 링크(releases/latest/download/Sokki.dmg)용 고정 이름 사본. 공증·스테이플이 끝난 뒤 복사해야 한다.
-cp "$DMG" "$DIR/build/Sokki.dmg"
+# README 의 바로 받기 링크(releases/latest/download/Brefly.dmg)용 고정 이름 사본. 공증·스테이플이 끝난 뒤 복사해야 한다.
+cp "$DMG" "$DIR/build/Brefly.dmg"
 echo "✅ $DMG ($(du -h "$DMG" | cut -f1))"
-echo "   릴리스: gh release create v$VERSION \"$DMG\" \"$DIR/build/Sokki.dmg\""
+echo "   릴리스: gh release create v$VERSION \"$DMG\" \"$DIR/build/Brefly.dmg\""
