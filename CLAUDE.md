@@ -10,7 +10,7 @@ git 규칙(브랜치·커밋·PR)은 전역 `git-workflow` 스킬을 따른다. 
   `Prefs.migrateFromPreviousNamesIfNeeded()` 가 한 번만 옮겨온다. 코드·문서에 "Sokki" 가 남아 있으면 지운다.
 - **저장소는 소문자** `yunuchoiii/brefly`, 랜딩 페이지는 `yunuchoiii/brefly-pages`
   (배포 주소 https://yunuchoiii.github.io/brefly-pages/).
-- 최신 릴리스 **v0.5.1**(공증 프로필 폴백, 첫 실행 권한 경고 지연). dev 에 미릴리스 수정 없음.
+- 최신 릴리스 **v0.5.2**(앱 내 업데이트가 버전 붙은 DMG 를 받는다 — 다운로드 수로 신규/기존 구분). dev 에 미릴리스 수정 없음.
 - 후원: GitHub Sponsors `yunuchoiii`. `.github/FUNDING.yml`, README, 설정 > 업데이트 탭에 링크.
 
 ## 빌드 · 검증 · 배포
