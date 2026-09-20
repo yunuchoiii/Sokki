@@ -396,9 +396,10 @@ enum Prefs {
         set { d.set(newValue.rawValue, forKey: "appearance") }
     }
 
-    /// 온디바이스 인식이 한 번 실패하면 켜진다. 이후 애플 서버 인식으로 넘어간다.
+    /// 애플 서버 인식을 쓸지. 기본 켬(2026-09-13): 온디바이스는 눈에 띄게 덜 정확하고 멈춤 뒤 구간을 리셋한다.
+    /// 직접 끄면 인터넷 없이 이 맥에서만 인식한다(한 번에 1분 제한 없음).
     static var forceServerRecognition: Bool {
-        get { d.bool(forKey: "forceServerRecognition") }
+        get { d.object(forKey: "forceServerRecognition") as? Bool ?? true }
         set { d.set(newValue, forKey: "forceServerRecognition") }
     }
 }
