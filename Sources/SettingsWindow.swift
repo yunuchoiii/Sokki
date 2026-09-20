@@ -601,6 +601,11 @@ struct UpdatesPane: View {
                             subtitle: "다운로드를 누르면 DMG 를 받습니다. 열어서 Sokki 를 Applications 폴더에 끌어 넣으면 덮어써지고, 설정과 권한은 그대로 유지됩니다.",
                             last: true) { EmptyView() }
             }
+            SettingsSection("후원") {
+                ActionRow("커피 한 잔으로 응원하기", "Sokki 는 무료입니다. 도움이 됐다면 GitHub Sponsors 로 응원해 주세요.", action: {
+                    if let url = URL(string: "https://github.com/sponsors/yunuchoiii") { NSWorkspace.shared.open(url) }
+                }, last: true)
+            }
         }
     }
 }

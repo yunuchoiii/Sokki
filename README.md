@@ -86,6 +86,10 @@ macOS 26 을 쓰고 있다면 키 없이도 Apple AI 만으로 됩니다. 인터
 - 받아 적은 텍스트는 고른 AI 모델에만 전송됩니다. Apple AI 를 고르면 아무 데도 보내지 않습니다.
 - 요약 기록은 이 맥에만 저장됩니다.
 
+## 후원
+
+무료 앱입니다. 도움이 됐다면 [커피 한 잔](https://github.com/sponsors/yunuchoiii)으로 응원해 주세요.
+
 ---
 
 # 개발자용
@@ -159,6 +163,10 @@ build.sh · make-dmg.sh
 - 애플 서버 인식은 한 번에 약 1분 제한이 있습니다. 온디바이스 인식은 제한이 없습니다.
 - 애드혹 서명 빌드는 재빌드마다 접근성 권한이 풀릴 수 있습니다. `./build.sh --install --reset-perms`.
 - 번들 ID `com.sokki.dictation` 을 바꾸면 권한과 설정이 초기화됩니다.
+
+## 후원
+
+Sokki 는 무료입니다. 쓰면서 도움이 됐다면 [커피 한 잔으로 응원](https://github.com/sponsors/yunuchoiii)해 주세요.
 
 ## 다음에 붙일 만한 것
 
