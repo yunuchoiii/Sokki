@@ -799,7 +799,6 @@ private struct ModelStep: View {
                 }
                 .buttonStyle(.plain)
                 if model.geminiExpanded { keyField }
-                Text("나중에 설정 > AI 모델에서 언제든 바꿀 수 있습니다").font(.system(size: 12)).foregroundColor(.text4)
             } else if model.appleStatus.canBecomeAvailable {
                 // C: 켤 수 있는데 꺼져 있거나 내려받는 중 — 가장 쉬운 길을 먼저 보여 준다
                 StepTitle("받아 적은 글을 정리할 AI 를 고릅니다")
@@ -1162,11 +1161,7 @@ private struct DoneStep: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            Text("메뉴바에 떠 있어야 단축키에 반응합니다. 설정 > 일반에서 언제든 바꿀 수 있습니다.")
-                .font(.system(size: 11)).foregroundColor(.text4)
-                .multilineTextAlignment(.center)
             WizardButton("닫기", style: .primary, wide: true) { model.finish() }
-            Text("이 안내는 설정 > 고급 · 진단에서 다시 볼 수 있습니다").font(.system(size: 11)).foregroundColor(.text4)
         }
         .padding(.vertical, 12).padding(.horizontal, 60)
     }
