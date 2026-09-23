@@ -1,6 +1,5 @@
 import SwiftUI
 import AppKit
-import ServiceManagement
 import Carbon.HIToolbox
 
 // 시안 2a "설정 창 — 일반", 2b "설정 창 — 음성인식 · AI". 창 폭 620, 왼쪽 사이드바.
@@ -79,7 +78,7 @@ final class SettingsModel: ObservableObject {
         if usageContexts.contains(c) { usageContexts.remove(c) } else { usageContexts.insert(c) }
     }
 
-    @Published var launchAtLogin = SMAppService.mainApp.status == .enabled
+    @Published var launchAtLogin = LoginItem.isEnabled
     @Published var launchAtLoginError = ""
     @Published var accessibilityTrusted = Paster.isTrusted
 
@@ -103,7 +102,7 @@ final class SettingsModel: ObservableObject {
 
     func refresh() {
         accessibilityTrusted = Paster.isTrusted
-        launchAtLogin = SMAppService.mainApp.status == .enabled
+        launchAtLogin = LoginItem.isEnabled
     }
 
     /// 설치 안내처럼 설정 창 밖에서 Prefs 를 바꿨을 때. 각 didSet 이 같은 값을 되쓰므로 해가 없다.
@@ -121,13 +120,8 @@ final class SettingsModel: ObservableObject {
     }
 
     func setLaunchAtLogin(_ on: Bool) {
-        do {
-            if on { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
-            launchAtLoginError = ""
-        } catch {
-            launchAtLoginError = "설정 실패: \(error.localizedDescription)"
-        }
-        launchAtLogin = SMAppService.mainApp.status == .enabled
+        launchAtLoginError = LoginItem.set(on) ?? ""
+        launchAtLogin = LoginItem.isEnabled
     }
 
     var appVersion: String {
