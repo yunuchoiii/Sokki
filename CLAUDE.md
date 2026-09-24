@@ -10,8 +10,26 @@ git 규칙(브랜치·커밋·PR)은 전역 `git-workflow` 스킬을 따른다. 
   `Prefs.migrateFromPreviousNamesIfNeeded()` 가 한 번만 옮겨온다. 코드·문서에 "Sokki" 가 남아 있으면 지운다.
 - **저장소는 소문자** `yunuchoiii/brefly`, 랜딩 페이지는 `yunuchoiii/brefly-pages`
   (배포 주소 https://yunuchoiii.github.io/brefly-pages/).
-- 최신 릴리스 **v0.5.2**(앱 내 업데이트가 버전 붙은 DMG 를 받는다 — 다운로드 수로 신규/기존 구분). dev 에 미릴리스 수정 없음.
+- 최신 릴리스 **v0.5.3**(커서 위치에 붙여넣기가 아무 데도 안 들어가던 버그 수정). dev 에 미릴리스 수정 없음.
 - 후원: GitHub Sponsors `yunuchoiii`. `.github/FUNDING.yml`, README, 설정 > 업데이트 탭에 링크.
+
+## 이어받는 사람에게 (2026-09-23)
+
+다른 컴퓨터·다른 세션이 이어서 작업할 때 먼저 볼 것. **끝나면 지운다** — 오래 두면 거짓말이 된다.
+
+- **PR #71(dev→main)이 머지를 기다린다.** 머지되면 AI가 이어서 태그 `v0.5.3` → 릴리스(DMG **두 개**) →
+  `gh workflow run pages.yml -R yunuchoiii/brefly-pages` 순으로 한다.
+- ⚠️ **릴리스 DMG 는 아무 맥에서나 못 만든다.** Developer ID 인증서와 notarytool 프로필 `brefly` 가
+  특정 맥 키체인에 있고, `make-dmg.sh` 는 터미널에 Finder 자동화 권한을 요구한다. 그 맥이 아니면
+  코드·PR·문서까지만 하고 DMG 와 릴리스는 넘긴다. `build/` 는 git 에 안 들어간다.
+- **0.5.3 에서 확인하지 못한 것 둘.** ① 로그인 시 자동 실행이 실제로 시스템 설정의 로그인 항목에
+  등록되는지(화면만 렌더로 봤다) ② 붙여넣기가 Chrome·ChatGPT 에서도 되는지(Orca 에서만 확인).
+- **다운로드 기준점 38회**(2026-09-20 밤). 벨로그 글 효과를 이 숫자와 비교해 잰다.
+  `gh api repos/yunuchoiii/brefly/releases --jq '[.[].assets[].download_count] | add'`
+  ⚠️ 검증한다고 DMG 를 curl 로 받지 말 것 — 집계에 섞여 기준점이 오염된다(한 번 그랬다).
+  ⚠️ GitHub Traffic(유입 경로)은 **14일만 보관**된다. `velog.io` 가 찍혔는지 그 안에 봐야 한다.
+- SEO 는 Search Console 등록·사이트맵·색인 요청까지 끝났다. 남은 건 **백링크뿐이고 사람만 할 수 있다**
+  (GeekNews·디스콰이엇 등). 올릴 때 "Brefly(브레플리)" 형태로 한글 이름을 같이 써야 이름이 연결된다.
 
 ## 빌드 · 검증 · 배포
 

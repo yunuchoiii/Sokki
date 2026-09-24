@@ -28,6 +28,12 @@ final class OnboardingModel: ObservableObject {
     @Published var dictationChecked = false
     private var dictationTimer: Timer?
 
+    // 8 마무리 — 로그인 시 자동 실행
+    /// 마법사에서 체크해 둔 값. 화면에서 바로 등록하지 않고 finish() 에서 한 번만 반영한다.
+    /// 메뉴바 앱은 떠 있지 않으면 단축키에 반응하지 못하므로 기본값은 켬이다.
+    @Published var launchAtLogin = true
+    @Published var launchAtLoginError = ""
+
     // 3 AI 모델
     @Published var appleStatus: AppleClient.Status
     var appleAvailable: Bool { appleStatus == .available }
@@ -151,6 +157,13 @@ final class OnboardingModel: ObservableObject {
 
     func finish() {
         if !previewMode {
+            // 이미 켜져 있으면 건드리지 않는다. 껐다 켜면 시스템 설정의 승인 상태가 흔들린다.
+            if launchAtLogin != LoginItem.isEnabled {
+                launchAtLoginError = LoginItem.set(launchAtLogin) ?? ""
+                if !launchAtLoginError.isEmpty {
+                    Log.write("로그인 시 자동 실행 설정 실패: \(launchAtLoginError)")
+                }
+            }
             Prefs.onboarded = true
             NotificationCenter.default.post(name: .breflyPrefsChanged, object: nil)
         }
@@ -786,7 +799,6 @@ private struct ModelStep: View {
                 }
                 .buttonStyle(.plain)
                 if model.geminiExpanded { keyField }
-                Text("나중에 설정 > AI 모델에서 언제든 바꿀 수 있습니다").font(.system(size: 12)).foregroundColor(.text4)
             } else if model.appleStatus.canBecomeAvailable {
                 // C: 켤 수 있는데 꺼져 있거나 내려받는 중 — 가장 쉬운 길을 먼저 보여 준다
                 StepTitle("받아 적은 글을 정리할 AI 를 고릅니다")
@@ -1129,8 +1141,27 @@ private struct DoneStep: View {
                 }
             }
             Text("지금 눌러서 한 번 말해 보세요.").font(.system(size: 13.5)).foregroundColor(.text2)
+            Button(action: { model.launchAtLogin.toggle() }) {
+                HStack(spacing: 9) {
+                    RoundedRectangle(cornerRadius: 5)
+                        .stroke(model.launchAtLogin ? Color.clear : Color.lineStrong, lineWidth: 1.5)
+                        .background(
+                            RoundedRectangle(cornerRadius: 5)
+                                .fill(model.launchAtLogin ? Color.ink : Color.paper)
+                        )
+                        .frame(width: 17, height: 17)
+                        .overlay {
+                            if model.launchAtLogin {
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 10, weight: .heavy)).foregroundColor(.paper)
+                            }
+                        }
+                    Text("로그인할 때 자동으로 시작").font(.system(size: 13, weight: .semibold)).foregroundColor(.ink)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
             WizardButton("닫기", style: .primary, wide: true) { model.finish() }
-            Text("이 안내는 설정 > 고급 · 진단에서 다시 볼 수 있습니다").font(.system(size: 11)).foregroundColor(.text4)
         }
         .padding(.vertical, 12).padding(.horizontal, 60)
     }

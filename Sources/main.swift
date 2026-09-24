@@ -146,6 +146,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     // 녹음 중 Esc 로 취소. 전역 감시는 다른 앱 위에서도 잡고, 로컬 감시는 팝오버가 키 창일 때 잡는다.
     private var escMonitors: [Any] = []
 
+    /// 녹음을 시작하기 직전에 쓰고 있던 앱. 붙여넣기는 여기로 돌아가야 한다.
+    /// 팝오버가 뜨면 Brefly 가 활성 앱이 되므로, 그 전에 잡아 두지 않으면 알 길이 없다.
+    private var appBeforeRecording: NSRunningApplication?
+
+
     // 녹음 타이머 · 침묵 감지
     private var recordingStartedAt: Date?
     private var recordingTimer: Timer?
@@ -313,6 +318,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     private func startRecording() {
         do {
+            // 팝오버를 띄우기 전에 잡아야 한다. 띄운 뒤엔 Brefly 자신이 최전면이라 늦는다.
+            let front = NSWorkspace.shared.frontmostApplication
+            appBeforeRecording = front?.bundleIdentifier == Bundle.main.bundleIdentifier ? nil : front
+            Log.write("붙여넣기 대상 기억: \(appBeforeRecording?.localizedName ?? "없음")")
             partialText = ""
             model.resetRecording()
             model.retryRecord = nil
@@ -552,22 +561,78 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             return
         }
 
-        // 팝오버 버튼을 눌러 끝냈다면 Brefly가 앞에 있다. 숨겨서 원래 앱으로 초점을 돌려준다.
-        let delay: TimeInterval
-        if NSApp.isActive {
-            popover.performClose(nil)
+        // 팝오버가 떠 있으면 Brefly 가 활성 앱이다. 원래 앱으로 초점을 확실히 돌려준 뒤에 붙여넣는다.
+        // 고정 시간만 기다리면 초점이 아직 안 돌아온 채로 Cmd+V 를 쏘게 되고, 그러면 아무 데도 안 붙는다.
+        let wasActive = NSApp.isActive
+        let popoverWasShown = popover.isShown
+        Log.write("붙여넣기 준비: Brefly 활성=\(wasActive), 팝오버 열림=\(popoverWasShown), 대상=\(appBeforeRecording?.localizedName ?? "없음"), 현재 최전면=\(NSWorkspace.shared.frontmostApplication?.localizedName ?? "?")")
+
+        // ⚠️ 팝오버 닫기를 NSApp.isActive 안에 두면 안 된다.
+        // 상태 항목 팝오버는 앱이 "활성"이 아니어도 키 창이 될 수 있고, 그러면 키보드 입력을
+        // 팝오버가 받아 삼킨다. 실측: 붙일 때마다 활성=false 라 팝오버를 한 번도 안 닫았고,
+        // 그래서 Cmd+V 가 대상 앱에 닿지 않았다. 열려 있으면 활성 여부와 무관하게 먼저 닫는다.
+        if popoverWasShown { popover.performClose(nil) }
+        if wasActive {
+            // 순서가 중요하다. activate() 를 먼저 부르면 뒤이은 hide() 가 초점을 또 옮겨 버린다.
             NSApp.hide(nil)
-            delay = 0.25
+            appBeforeRecording?.activate()
+        }
+        let startedAt = Date()
+        waitForFocusReturn { returned in
+            let waited = Date().timeIntervalSince(startedAt)
+            // 최전면이 바뀌었다고 해서 그 앱 안의 입력칸이 곧바로 키보드 초점을 되찾는 건 아니다.
+            // 창 전환이 끝나고도 first responder 복원이 한 박자 늦어서, 여유를 두고 쏜다.
+            // 팝오버를 닫았으면 키 창이 원래 앱으로 넘어갈 틈이 필요하다.
+            let settle: TimeInterval = (wasActive || popoverWasShown) ? 0.35 : 0
+            DispatchQueue.main.asyncAfter(deadline: .now() + settle) {
+                Log.write("붙여넣기: 초점 복귀 \(returned ? "성공" : "실패") — 대기 \(String(format: "%.2f", waited))초 + 여유 \(settle)초")
+                self.finishDelivery(text, record: record, message: message, focusReturned: returned)
+            }
+        }
+    }
+
+    /// 원래 쓰던 앱이 다시 최전면이 될 때까지 기다린다. 0.03초마다 확인하고 최대 1초까지만.
+    /// 기억해 둔 앱이 없으면(예: 단축키를 눌렀을 때 Brefly 가 이미 앞이었음) 짧게만 쉬고 넘어간다.
+    private func waitForFocusReturn(_ done: @escaping (Bool) -> Void) {
+        guard NSApp.isActive || appBeforeRecording != nil else { done(true); return }
+        guard let target = appBeforeRecording else {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { done(!NSApp.isActive) }
+            return
+        }
+        let deadline = Date().addingTimeInterval(1.0)
+        func check() {
+            if NSWorkspace.shared.frontmostApplication?.processIdentifier == target.processIdentifier {
+                done(true)
+            } else if Date() >= deadline {
+                Log.write("붙여넣기: \(target.localizedName ?? "이전 앱") 으로 초점이 1초 안에 안 돌아옴")
+                done(false)
+            } else {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.03) { check() }
+            }
+        }
+        check()
+    }
+
+    /// 초점이 돌아왔으면 붙여넣고, 아니면 클립보드에만 남긴다. 어느 쪽인지 팝오버에도 그대로 알린다.
+    private func finishDelivery(_ text: String, record: SummaryRecord, message: String, focusReturned: Bool) {
+        var pasted = false
+        if focusReturned && !Paster.secureInputOn {
+            pasted = Paster.paste(text, restoreClipboard: Prefs.restoreClipboard)
+        }
+        if !pasted {
+            // 붙여넣지 못했으면 최소한 클립보드에는 남겨 둔다. 그래야 ⌘V 로 직접 붙일 수 있다.
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(text, forType: .string)
+            let why = Paster.secureInputOn ? "보안 입력 모드가 켜져 있음"
+                    : (focusReturned ? "키 이벤트를 만들지 못함" : "초점이 안 돌아옴")
+            Log.write("붙여넣기 실패(\(why)) — 클립보드에만 복사 (\(text.count)자)")
         } else {
-            delay = 0
+            let now = NSWorkspace.shared.frontmostApplication?.localizedName ?? "?"
+            Log.write("커서 위치에 붙여넣음 (\(text.count)자) — 대상 \(appBeforeRecording?.localizedName ?? "없음"), 붙일 때 최전면 \(now)")
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-            Paster.paste(text, restoreClipboard: Prefs.restoreClipboard)
-            self.model.phase = .done(record, .pasted)
-            self.setState(.idle, message: message)
-            // 붙여넣기와 클립보드 복원이 끝난 뒤에 팝오버를 띄운다(설정이 켜져 있을 때만).
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { self.showResultOrClose() }
-        }
+        model.phase = .done(record, pasted ? .pasted : .copied)
+        setState(.idle, message: pasted ? message : "\(message) — ⌘V로 붙여넣으세요")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { self.showResultOrClose() }
     }
 
     /// 정리가 끝난 뒤. 설정이 꺼져 있으면 정리 중 화면을 닫고 조용히 끝낸다 — 결과는 메뉴바 아이콘을 누르면 본다.
