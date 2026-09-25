@@ -595,6 +595,23 @@ enum Glossary {
         return Array(words.filter { seen.insert($0).inserted }.prefix(150))
     }
 
+    /// 모델이 원문의 영어 단어를 비슷하게 들리는 용어 목록 단어로 바꾼 걸 되돌린다. 사용자가 flash-lite 를 말해
+    /// "Flashlight"로 받아쓰였는데 모델이 목록의 "TestFlight"로 바꿨다(2026-09-25). 규칙을 두 번 좁혀도 무시했다.
+    /// 원문의 영어 단어가 딱 하나 사라지고 원문에 없던 목록 단어가 딱 하나 생겼을 때만 바꾼다.
+    static func restoreSwappedWord(_ output: String, raw: String) -> String {
+        func latinWords(_ s: String) -> Set<String> {
+            Set(s.split(whereSeparator: { !($0.isASCII && ($0.isLetter || $0.isNumber)) }).map(String.init).filter { $0.count >= 3 })
+        }
+        let targets = Set(rules().map(\.replacement))
+        let missing = latinWords(raw).filter { output.range(of: $0, options: .caseInsensitive) == nil }
+        let introduced = latinWords(output).filter { word in
+            raw.range(of: word, options: .caseInsensitive) == nil && targets.contains { $0.caseInsensitiveCompare(word) == .orderedSame }
+        }
+        guard missing.count == 1, introduced.count == 1, let from = introduced.first, let to = missing.first else { return output }
+        Log.write("용어 되돌림: 모델이 \(to) 를 \(from) 로 바꿨다")
+        return output.replacingOccurrences(of: from, with: to)
+    }
+
     /// 긴 변형부터 바꿔서 "리 액트 네이티브"가 "React 네이티브"로 반쯤 바뀌는 일을 막는다.
     static func apply(to text: String) -> String {
         var out = text
