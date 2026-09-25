@@ -343,13 +343,7 @@ struct RecognitionPane: View {
                         model.backend = Prefs.Backend.allCases[$0]
                     }
                 }
-                SettingsRow(title: "정리 스타일", subtitle: "요약 결과의 말투와 형식을 정합니다.") {
-                    PopupLabel(title: model.style.title,
-                               options: PolishStyle.allCases.map(\.title),
-                               selected: PolishStyle.allCases.firstIndex(of: model.style)) {
-                        model.style = PolishStyle.allCases[$0]
-                    }
-                }
+                PolishStyleRow(model: model)
                 SettingsRow(title: "세부 모델", subtitle: modelHint, last: model.backend == .apple) {
                     if model.backend == .apple {
                         Text("이 맥의 Apple Intelligence 모델을 씁니다.").font(.system(size: 12)).foregroundColor(.text3)
@@ -678,6 +672,48 @@ struct SettingsRow<Accessory: View>: View {
             }
             .padding(.horizontal, 14).padding(.vertical, 11)
             if !last { HairLine().padding(.leading, 14) }
+        }
+    }
+}
+
+/// 정리 스타일 고르기. 드롭다운이면 다섯 가지가 접혀 있어 '핵심 요약'이 있는 줄도 모르고 지나친다.
+/// 펼쳐 두면 어떤 선택지가 있는지 한눈에 보인다.
+struct PolishStyleRow: View {
+    @ObservedObject var model: SettingsModel
+
+    var body: some View {
+        VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("정리 스타일").font(.system(size: 13, weight: .semibold)).foregroundColor(.ink)
+                    Text("요약 결과의 말투와 형식을 정합니다.")
+                        .font(.system(size: 11)).foregroundColor(.text3)
+                }
+                VStack(spacing: 6) {
+                    ForEach(PolishStyle.allCases, id: \.self) { style in
+                        let on = model.style == style
+                        Button(action: { model.style = style }) {
+                            HStack(spacing: 8) {
+                                Image(systemName: on ? "largecircle.fill.circle" : "circle")
+                                    .font(.system(size: 13)).foregroundColor(on ? .coral : .text4)
+                                Text(style.title)
+                                    .font(.system(size: 12, weight: on ? .semibold : .regular))
+                                    .foregroundColor(.ink)
+                                Spacer(minLength: 0)
+                            }
+                            .padding(.horizontal, 10).frame(height: 34)
+                            .background(on ? Color.fill : Color.clear)
+                            .overlay(RoundedRectangle(cornerRadius: 8)
+                                .stroke(on ? Color.lineStrong : Color.line, lineWidth: 1))
+                            .cornerRadius(8)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            .padding(.horizontal, 14).padding(.vertical, 11)
+            HairLine().padding(.leading, 14)
         }
     }
 }
