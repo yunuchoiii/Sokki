@@ -70,14 +70,12 @@ struct IdleView: View {
             .padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 12)
 
             HStack(spacing: 10) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("핵심 요약").font(.system(size: 13, weight: .semibold)).foregroundColor(.ink)
-                    Text(model.summaryOn ? "요점만 짧게 불릿으로 정리합니다" : "말한 내용을 빠짐없이 다듬습니다")
-                        .font(.system(size: 11.5)).foregroundColor(.text3)
-                }
+                Text("핵심 요약").font(.system(size: 13, weight: .semibold)).foregroundColor(.ink)
                 Spacer()
                 Toggle("", isOn: Binding(get: { model.summaryOn }, set: { model.actions.setSummary($0) }))
                     .toggleStyle(.switch).labelsHidden().controlSize(.small)
+                    // 기본 스위치는 시스템 강조색(파랑)을 쓴다. 테마 코랄로 맞춘다.
+                    .tint(.coral)
             }
             .padding(.horizontal, 16).padding(.bottom, 12)
 
