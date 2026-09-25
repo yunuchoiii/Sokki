@@ -578,8 +578,8 @@ struct UpdatesPane: View {
         VStack(alignment: .leading, spacing: 18) {
             SettingsSection("새 버전") {
                 ActionRow("업데이트 확인", "지금 버전은 \(model.appVersion) 입니다. GitHub 에 새 버전이 있으면 바뀐 점과 다운로드 버튼을 보여 줍니다.",
-                          action: model.actions.checkForUpdates)
-                ActionRow("바뀐 점 보기", "지금까지 나온 버전과 바뀐 점을 GitHub 릴리스 페이지에서 봅니다.", action: {
+                          buttonTitle: "확인", action: model.actions.checkForUpdates)
+                ActionRow("바뀐 점 보기", "지금까지 나온 버전과 바뀐 점을 GitHub 릴리스 페이지에서 봅니다.", buttonTitle: "보기", action: {
                     if let url = URL(string: "https://github.com/yunuchoiii/brefly/releases") { NSWorkspace.shared.open(url) }
                 }, last: true)
             }
@@ -686,13 +686,17 @@ struct ActionRow: View {
     let title: String
     let subtitle: String
     let action: () -> Void
+    /// 버튼에 쓸 말. 대부분은 "실행"이 맞지만, 확인·보기처럼 행동이 분명한 곳은 그 말을 쓴다.
+    var buttonTitle = "실행"
     var last = false
-    init(_ title: String, _ subtitle: String, action: @escaping () -> Void, last: Bool = false) {
-        self.title = title; self.subtitle = subtitle; self.action = action; self.last = last
+    init(_ title: String, _ subtitle: String, buttonTitle: String = "실행",
+         action: @escaping () -> Void, last: Bool = false) {
+        self.title = title; self.subtitle = subtitle
+        self.buttonTitle = buttonTitle; self.action = action; self.last = last
     }
     var body: some View {
         SettingsRow(title: title, subtitle: subtitle, last: last) {
-            SmallButton("실행", action: action)
+            SmallButton(buttonTitle, action: action)
         }
     }
 }
