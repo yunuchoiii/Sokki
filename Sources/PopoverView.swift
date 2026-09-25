@@ -71,7 +71,19 @@ struct IdleView: View {
                 Text("로 시작")
             }
             .font(.system(size: 12)).foregroundColor(.text3)
-            .padding(.top, 10).padding(.bottom, 14)
+            .padding(.top, 10).padding(.bottom, 12)
+
+            HStack(spacing: 10) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("핵심 요약").font(.system(size: 13, weight: .semibold)).foregroundColor(.ink)
+                    Text(model.summaryOn ? "요점만 짧게 불릿으로 정리합니다" : "말한 내용을 빠짐없이 다듬습니다")
+                        .font(.system(size: 11.5)).foregroundColor(.text3)
+                }
+                Spacer()
+                Toggle("", isOn: Binding(get: { model.summaryOn }, set: { model.actions.setSummary($0) }))
+                    .toggleStyle(.switch).labelsHidden().controlSize(.small)
+            }
+            .padding(.horizontal, 16).padding(.bottom, 12)
 
             HairLine()
 
@@ -291,6 +303,12 @@ struct DoneView: View {
                 .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.greenBorder, lineWidth: 1))
                 .cornerRadius(8)
                 .padding(.horizontal, 16).padding(.top, 16)
+                if !model.doneNote.isEmpty {
+                    Text(model.doneNote + " — '다시 요약'으로 한 번 더 해 볼 수 있어요")
+                        .font(.system(size: 11.5)).foregroundColor(.text2)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 16).padding(.top, 8)
+                }
             case .viewing:
                 HStack {
                     Button(action: { model.phase = .idle }) {

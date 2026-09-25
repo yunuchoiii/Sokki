@@ -61,13 +61,30 @@ if let i = CommandLine.arguments.firstIndex(of: "--render-icon"), i + 1 < Comman
 }
 
 // 진단용: 녹음 없이 정리 백엔드만 돌려 본다. 키는 환경변수(GEMINI_API_KEY 등)로도 넣을 수 있다.
+if let i = CommandLine.arguments.firstIndex(of: "--prompt"), i + 1 < CommandLine.arguments.count {
+    // 진단용: 모델에 넘어가는 요청문(말투·질문 규칙이 붙은 모습)을 그대로 본다. 모델은 부르지 않는다.
+    let hint: Intonation.Direction? = CommandLine.arguments.firstIndex(of: "--intonation").flatMap { j in
+        j + 1 < CommandLine.arguments.count ? ["up": .rising, "down": .falling][CommandLine.arguments[j + 1]] : nil
+    }
+    let text = Glossary.apply(to: CommandLine.arguments[i + 1])
+    Prompts.setIntonation(hint, raw: text)
+    print(Prompts.userMessage(text, style: Prefs.style))
+    exit(0)
+}
+
 if let i = CommandLine.arguments.firstIndex(of: "--polish"), i + 1 < CommandLine.arguments.count {
     let done = DispatchSemaphore(value: 0)
     let started = Date()
-    Polisher.run(CommandLine.arguments[i + 1]) { result in
+    // 진단용: --intonation up|down 으로 녹음 끝 억양을 흉내 낸다.
+    let hint: Intonation.Direction? = CommandLine.arguments.firstIndex(of: "--intonation").flatMap { j in
+        j + 1 < CommandLine.arguments.count ? ["up": .rising, "down": .falling][CommandLine.arguments[j + 1]] : nil
+    }
+    Polisher.run(CommandLine.arguments[i + 1], intonation: hint) { result in
         let secs = String(format: "%.1f", Date().timeIntervalSince(started))
         switch result {
-        case .success(let text): print("OK (\(secs)s) [\(Prefs.backend.rawValue)]\n\(text)")
+        case .success(let text):
+            print("OK (\(secs)s) [\(Prefs.backend.rawValue)]\n\(text)")
+            if let note = Polisher.fallbackNote { print("NOTE: \(note)") }
         case .failure(let error): print("FAIL (\(secs)s)\n\(error.localizedDescription)")
         }
         done.signal()
@@ -222,7 +239,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         if Prefs.autoPaste && !Paster.isTrusted {
             // 실행 직후엔 이미 켜 둔 권한도 false 로 보인다. 알림창을 바로 띄우지 말고 15초 기다렸다가,
             // 그래도 없으면 안내한다. 그 사이 권한이 확인되면 아무 일도 없었던 것처럼 넘어간다.
-            Paster.requestTrust()
+            // 여기서 권한 요청 창을 바로 띄우면 15초 뒤 안내창과 겹친다. 안내창 하나로만 알린다.
             startTrustWatcher(noticeAfter: 15, notice: { [weak self] in self?.showAccessibilityNotice() })
         }
     }
@@ -264,7 +281,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 if let notice {
                     notice()
                 } else {
-                    self.fail("단축키 \(Prefs.currentHotKey.title) 는 손쉬운 사용 권한이 있어야 동작합니다.\n\n시스템 설정 > 개인정보 보호 및 보안 > 손쉬운 사용에서 Brefly 를 켜 주세요. 권한이 켜지면 자동으로 다시 등록합니다.")
+                    self.fail("단축키 \(Prefs.currentHotKey.title) 는 손쉬운 사용 권한이 있어야 동작합니다.\n\n\(SystemSettings.accessibilityPath)에서 Brefly 를 켜 주세요. 권한이 켜지면 자동으로 다시 등록합니다.")
                 }
             }
             if elapsed > 300 {
@@ -465,7 +482,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
 
         let startedAt = Date()
-        Polisher.run(raw) { result in
+        // 억양은 방금 녹음한 소리에서만 잰다. "다시 요약"은 예전 기록이라 없다.
+        let intonation = old == nil ? recorder.lastIntonation?.direction : nil
+        Polisher.run(raw, intonation: intonation) { result in
             DispatchQueue.main.async {
                 guard generation == self.polishGeneration else {
                     Log.write("취소된 요약 결과 무시")
@@ -475,10 +494,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 switch result {
                 case .success(let text):
                     Log.write("Claude 정리 완료(\(text.count)자, \(secs)초)")
-                    self.deliver(record(text, polished: true), message: "완료 (\(secs)초)")
+                    self.model.doneNote = Polisher.fallbackNote ?? ""
+                    self.deliver(record(text, polished: true), message: Polisher.fallbackNote ?? "완료 (\(secs)초)")
                 case .failure(let error):
                     // 정리에 실패해도 말한 내용은 버리지 않는다.
                     Log.write("Claude 실패: \(error.localizedDescription)")
+                    self.model.doneNote = ""
                     let fallback = record(raw, polished: false)
                     self.deliver(fallback, message: "Claude 정리 실패, 원문 붙여넣음")
                     self.model.retryRecord = fallback
@@ -776,8 +797,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         if Prefs.currentHotKey.title != model.hotKeyTitle { registerHotKey() }
         applyDockVisibility()
         if Prefs.autoPaste && !Paster.isTrusted {
-            Paster.requestTrust()
-            startTrustWatcher()
+            startTrustWatcher()   // 설정을 바꿀 때마다 권한 요청 창을 띄우지 않는다
         }
         model.refreshPrefs()
         settings.model.refresh()
@@ -830,6 +850,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             self?.settings.show()
         }
         model.actions.quit = { NSApp.terminate(nil) }
+        // 설정 창 모델을 거쳐 바꿔야 설정 창의 '정리 스타일'도 같이 바뀌고 prefsChanged 가 돈다.
+        model.actions.setSummary = { [weak self] on in
+            self?.settings.model.style = on ? .summary : Prefs.plainStyle
+        }
         model.actions.openLog = { [weak self] in self?.openLog() }
         model.actions.cancelPolish = { [weak self] in
             guard let self, case .polishing = self.model.phase else { return }
@@ -1219,7 +1243,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         if Paster.isTrusted {
             setState(.idle, message: "커서 위치에 자동 붙여넣습니다")
         } else {
-            Paster.requestTrust()
             startTrustWatcher()
             setState(.idle, message: "접근성 권한을 허용해 주세요")
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
@@ -1283,7 +1306,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             return
         }
         guard Paster.isTrusted else {
-            fail("접근성 권한이 없어 자동 붙여넣기를 할 수 없습니다.\n시스템 설정 > 개인정보 보호 및 보안 > 손쉬운 사용에서 Brefly를 켜세요.")
+            fail("접근성 권한이 없어 자동 붙여넣기를 할 수 없습니다.\n\(SystemSettings.accessibilityPath)에서 Brefly를 켜세요.")
             return
         }
         setState(.idle, message: "3초 뒤 붙여넣습니다 — 텍스트 필드를 클릭하세요.")
@@ -1433,10 +1456,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     @objc private func openAccessibility() {
-        Paster.requestTrust()
-        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
-            NSWorkspace.shared.open(url)
-        }
+        Paster.sendToSettings { SystemSettings.open(.accessibility) }
     }
 
     private func showAccessibilityNotice() {
@@ -1446,7 +1466,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         alert.informativeText = """
             커서 위치에 텍스트를 자동으로 붙여 넣으려면 접근성 권한이 필요합니다.
 
-            시스템 설정 > 개인정보 보호 및 보안 > 손쉬운 사용에서 Brefly를 켜 주세요.
+            \(SystemSettings.accessibilityPath)에서 Brefly를 켜 주세요.
+            이미 켜져 있는데도 이 창이 뜨면, Brefly 를 목록에서 '−'로 지우고 다시 추가해 주세요. 앱을 새로 설치하면
+            macOS 가 다른 앱으로 볼 때가 있습니다.
 
             목록에 Brefly가 안 보이면 '+' 버튼을 누르고 ⌘⇧G로 아래 경로를 붙여넣어 직접 추가하세요:
             \(Bundle.main.bundlePath)

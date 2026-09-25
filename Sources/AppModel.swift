@@ -45,8 +45,11 @@ final class AppModel: ObservableObject {
     @Published var localeID = Prefs.localeID
     @Published var autoStop = Prefs.autoStopOnSilence
     @Published var backendTitle = Prefs.backend.title
+    @Published var summaryOn = Prefs.style == .summary
     /// 요약 중 화면의 진행 상황 한 줄
     @Published var polishNote = ""
+    /// 결과 화면 위에 띄울 알림. 요약을 골랐는데 문장만 다듬었을 때 쓴다.
+    @Published var doneNote = ""
     /// 지금 요약 중인 원문. 취소·원문 복사 버튼용.
     @Published var pendingRaw = ""
 
@@ -65,6 +68,7 @@ final class AppModel: ObservableObject {
         var dismissError: () -> Void = {}
         var cancelPolish: () -> Void = {}
         var copyPendingRaw: () -> Void = {}
+        var setSummary: (Bool) -> Void = { _ in }
     }
     var actions = Actions()
 
@@ -84,6 +88,7 @@ final class AppModel: ObservableObject {
         localeID = Prefs.localeID
         autoStop = Prefs.autoStopOnSilence
         backendTitle = Prefs.backend.title
+        summaryOn = Prefs.style == .summary
     }
 
     func upsert(_ record: SummaryRecord) {

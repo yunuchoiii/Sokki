@@ -498,8 +498,8 @@ struct APIKeyRow: View {
             HStack(spacing: 6) {
                 Circle().fill(saved.isEmpty ? Color.coral : Color.green).frame(width: 6, height: 6)
                 Text(saved.isEmpty
-                     ? (slot == .gemini ? "aistudio.google.com/apikey 에서 무료 발급 · 카드 등록 불필요"
-                                        : "console.anthropic.com 에서 발급 · 크레딧 충전 필요")
+                     ? (slot == .gemini ? "aistudio.google.com/apikey 에서 무료 발급\n카드 등록 불필요"
+                                        : "console.anthropic.com 에서 발급\n크레딧 충전 필요")
                      : "키 확인됨 · " + KeychainStore.storageDescription)
                     .font(.system(size: 11)).foregroundColor(.text3)
                 Button("발급 페이지 열기") {

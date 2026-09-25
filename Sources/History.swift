@@ -33,6 +33,19 @@ enum HistoryStore {
 
     /// 요약 첫 문장에서 제목을 뽑는다. LLM을 한 번 더 부르지 않는다.
     static func makeTitle(from summary: String) -> String {
+        // 요약 스타일은 "주제: 내용" 불릿이 많다. 첫 불릿을 제목으로 쓰면 바로 아래 첫 불릿과 똑같이 두 번 보여서
+        // 주제들을 이어 제목으로 쓴다 ("온보딩 첫 화면 · 단축키 안내").
+        let topics = summary.split(separator: "\n").compactMap { line -> String? in
+            let l = line.trimmingCharacters(in: .whitespaces)
+            guard l.hasPrefix("- "), let colon = l.range(of: ": ") else { return nil }
+            let topic = l[l.index(l.startIndex, offsetBy: 2)..<colon.lowerBound].replacingOccurrences(of: "**", with: "")
+            return (1...16).contains(topic.count) ? topic : nil
+        }
+        if topics.count >= 2 {
+            let joined = topics.joined(separator: " · ")
+            return joined.count > 34 ? joined.prefix(34).trimmingCharacters(in: .whitespaces) + "…" : joined
+        }
+
         let firstLine = summary
             .split(separator: "\n", omittingEmptySubsequences: true)
             .map { $0.trimmingCharacters(in: .whitespaces) }

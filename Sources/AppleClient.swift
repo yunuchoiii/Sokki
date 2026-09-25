@@ -83,9 +83,28 @@ struct AppleClient {
         let started = Date()
         Task {
             do {
-                let session = LanguageModelSession(model: model, instructions: Prompts.systemCompact(for: style))
-                let response = try await session.respond(to: Prompts.userMessage(raw))
-                let text = response.content.trimmingCharacters(in: .whitespacesAndNewlines)
+                var text = ""
+                if style == .summary {
+                    // 뜻이 뒤집힌 불릿이 나오면 다시 뽑는다. 세 번 다 어긋나면 요약을 포기하고 다듬기로 넘어간다.
+                    let prepared = BulletSummary.prepare(raw)
+                    for attempt in 1...3 {
+                        let session = LanguageModelSession(model: model, instructions: Prompts.systemCompact(for: .summary))
+                        let points = try await session.respond(to: "Transcript:\n" + prepared,
+                                                               generating: OnDeviceSummary.self).content.points
+                        if points.allSatisfy({ BulletSummary.isFaithful($0, to: prepared) }) {
+                            // 3B 는 요점을 나누기만 하고 요약은 못 한다. 불릿을 붙이면 요약처럼 보여서 문장으로 잇는다.
+                            text = BulletSummary.prose(from: points)
+                            break
+                        }
+                        Log.write("온디바이스 요약: 원문과 순서가 어긋난 불릿 — 다시 시도 (\(attempt)/3)")
+                    }
+                }
+                if text.isEmpty {
+                    let fallback: PolishStyle = style == .summary ? .standard : style
+                    let session = LanguageModelSession(model: model, instructions: Prompts.systemCompact(for: fallback))
+                    let response = try await session.respond(to: Prompts.userMessage(raw, style: fallback))
+                    text = response.content.trimmingCharacters(in: .whitespacesAndNewlines)
+                }
                 let elapsed = String(format: "%.1f", Date().timeIntervalSince(started))
                 Log.write("Apple 온디바이스 응답 \(text.count)자, \(elapsed)초")
                 completion(text.isEmpty ? .failure(AppleModelError.badResponse) : .success(text))

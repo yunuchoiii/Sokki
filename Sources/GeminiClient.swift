@@ -142,7 +142,7 @@ struct GeminiClient {
 
         let body: [String: Any] = [
             "systemInstruction": ["parts": [["text": Prompts.system(for: style)]]],
-            "contents": [["role": "user", "parts": [["text": Prompts.userMessage(raw)]]]],
+            "contents": [["role": "user", "parts": [["text": Prompts.userMessage(raw, style: style)]]]],
             "generationConfig": generationConfig
         ]
 

@@ -44,6 +44,10 @@ final class SpeechRecorder {
     private var safetyTimer: DispatchWorkItem?
     /// 이번 녹음에서 마이크가 넘긴 버퍼 수. 0 이면 말이 없는 게 아니라 마이크가 안 잡힌 것.
     private(set) var bufferCount = 0
+    /// 녹음 끝부분 소리. 멈출 때 말 끝 억양을 잰다.
+    private let intonationTracker = IntonationTracker()
+    /// 마지막 녹음의 말 끝 억양. 못 쟀으면 nil.
+    private(set) var lastIntonation: Intonation?
     private var configObserver: NSObjectProtocol?
     private var levelHandler: ((Float) -> Void)?
 
@@ -93,6 +97,8 @@ final class SpeechRecorder {
         earlyFinal = false
         bufferCount = 0
         completion = nil
+        intonationTracker.reset()
+        lastIntonation = nil
 
         let req = SFSpeechAudioBufferRecognitionRequest()
         req.shouldReportPartialResults = true
@@ -178,6 +184,7 @@ final class SpeechRecorder {
         releaseEngine()
         request?.endAudio()
         Log.write("녹음 종료 — 오디오 버퍼 \(bufferCount)개 전달됨")
+        lastIntonation = intonationTracker.analyze()
 
         if bufferCount == 0 {
             Log.write("⚠️ 마이크에서 버퍼가 하나도 안 왔습니다. 입력 장치/권한 문제.")
@@ -248,6 +255,7 @@ final class SpeechRecorder {
             guard let self else { return }
             self.bufferCount += 1
             req.append(buffer)
+            self.intonationTracker.append(buffer)
             if let onLevel = self.levelHandler {
                 let level = Self.level(of: buffer)
                 DispatchQueue.main.async { onLevel(level) }
