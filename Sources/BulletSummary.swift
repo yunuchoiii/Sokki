@@ -19,14 +19,39 @@ enum BulletSummary {
             !fillers.contains(word.trimmingCharacters(in: CharacterSet(charactersIn: ",.…")))
         }.joined(separator: " ")
         s = s.replacingOccurrences(of: " .", with: ".").replacingOccurrences(of: "..", with: ".")
-        return dropRepeatedTail(s)
+        return dropRepeatedTail(dropRetracted(s))
+    }
+
+    /// "결제 하면은 그 다음에 아니다." 처럼 말하다 '아니다'로 거둬들인 문장. 받아쓰기가 '아니다' 뒤에 마침표를 찍어
+    /// 고친 말과 다른 문장으로 끊는다. 3B 모델은 이걸 그대로 불릿으로 옮겼다(사용자가 직접 겪음, 2026-09-25).
+    /// "그건 사실이 아니다"처럼 '~이/가 아니다'는 평범한 부정이라 건드리지 않는다.
+    static func isRetracted(_ sentence: String) -> Bool {
+        let words = sentence.trimmingCharacters(in: CharacterSet(charactersIn: " ,.")).split(separator: " ")
+        guard words.count >= 2, words.last == "아니다" else { return false }
+        let previous = words[words.count - 2]
+        return !["이", "가", "은", "는", "도"].contains(where: { previous.hasSuffix($0) })
+    }
+
+    /// 문장은 ". " 로만 나눈다. "." 로 나누면 "3.5"가 "3. 5"로 깨졌다.
+    static func sentences(_ text: String) -> [String] {
+        text.components(separatedBy: ". ").map {
+            var s = $0.trimmingCharacters(in: .whitespaces)
+            while s.hasSuffix(".") { s.removeLast() }
+            return s
+        }.filter { !$0.isEmpty }
+    }
+
+    static func dropRetracted(_ text: String) -> String {
+        let all = sentences(text)
+        let kept = all.filter { !isRetracted($0) }
+        guard kept.count < all.count, !kept.isEmpty else { return text }   // 지운 게 없으면 원문 그대로
+        return kept.joined(separator: ". ") + "."
     }
 
     /// 끝에 앞말을 되풀이하다 끊긴 조각("… 그리고 아까 말했던 단축키 안내도.")을 뗀다. 모델에 넘기면
     /// "단축키 안내도 있음"처럼 없는 서술어를 붙여 지어냈다(2026-09-25).
     static func dropRepeatedTail(_ text: String) -> String {
-        var sentences = text.components(separatedBy: ".").map { $0.trimmingCharacters(in: .whitespaces) }
-        while sentences.last?.isEmpty == true { sentences.removeLast() }
+        let sentences = sentences(text)
         guard sentences.count >= 2, var tail = sentences.last else { return text }
         for prefix in ["그리고 ", "근데 ", "그래서 "] where tail.hasPrefix(prefix) { tail.removeFirst(prefix.count) }
         let stem = String(tail.dropLast())   // 끝 조사는 달라도 같은 말 ("안내도" / "안내는")
@@ -50,7 +75,7 @@ enum BulletSummary {
                 l = l.trimmingCharacters(in: .whitespaces)
             }
             while l.hasSuffix(".") { l.removeLast() }
-            if !l.isEmpty { lines.append(l) }
+            if !l.isEmpty && !isRetracted(l) { lines.append(l) }
         }
         // 다른 불릿에 통째로 들어 있는 조각은 끊긴 말을 되풀이한 것이다. 끝 조사 하나는 달라도 같게 본다
         // ("단축키 안내도" ⊂ "단축키 안내는 매번 …").
@@ -63,6 +88,33 @@ enum BulletSummary {
             if !covered && !kept.contains(line) { kept.append(line) }
         }
         return resolveCorrections(kept).map { "- " + $0 }.joined(separator: "\n")
+    }
+
+    /// 온디바이스 요점들을 불릿 없는 문장으로 잇는다. 군말·말 고치기·되풀이 정리(tidy)는 그대로 거친다.
+    /// "~고", "~는데"처럼 이어지는 어미로 끝난 조각은 쉼표로 잇는다("볶고. 신 김치를 넣고."가 어색했다).
+    static func prose(from points: [String]) -> String {
+        let parts = tidy(points.map { "- " + $0 }.joined(separator: "\n"))
+            .split(separator: "\n").map { String($0.dropFirst(2)) }
+        let connectives = ["고", "는데", "은데", "다가", "면서", "며", "지만", "니까", "서"]
+        return parts.enumerated().map { i, s in
+            if ["?", "!", "~"].contains(where: s.hasSuffix) { return s }
+            let continues = i < parts.count - 1 && connectives.contains(where: s.hasSuffix)
+            return s + (continues ? "," : ".")
+        }.joined(separator: " ")
+    }
+
+    /// 클라우드 모델이 말하지 않은 단위·시간대를 붙인 걸 뗀다. 프롬프트에 규칙과 예시를 넣어도 Gemini(3.1-flash-lite,
+    /// 3.6-flash 둘 다)가 "예산은 칠백"을 "700만 원"으로, "열 시"를 "오전 10시"로 계속 바꿨다(2026-09-25).
+    /// 원문에 그 말이 한 번도 없을 때만 뗀다 — "아침 아홉 시" → "오전 9시" 처럼 말한 걸 바꿔 쓴 건 둔다.
+    static func removeUnsaidUnits(_ text: String, raw: String) -> String {
+        var out = text
+        if !["오전", "오후", "아침", "저녁", "밤", "낮", "새벽"].contains(where: raw.contains) {
+            out = out.replacingOccurrences(of: "오전 ", with: "").replacingOccurrences(of: "오후 ", with: "")
+        }
+        if !raw.contains("만") {
+            out = out.replacingOccurrences(of: "만 원", with: "").replacingOccurrences(of: "만원", with: "")
+        }
+        return out
     }
 
     /// 불릿의 단어가 원문과 같은 순서로 나오는지. 3B 모델은 원문을 거의 그대로 가져다 쓰므로 순서가 어긋났으면

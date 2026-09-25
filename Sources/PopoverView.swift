@@ -291,6 +291,12 @@ struct DoneView: View {
                 .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.greenBorder, lineWidth: 1))
                 .cornerRadius(8)
                 .padding(.horizontal, 16).padding(.top, 16)
+                if !model.doneNote.isEmpty {
+                    Text(model.doneNote + " — '다시 요약'으로 한 번 더 해 볼 수 있어요")
+                        .font(.system(size: 11.5)).foregroundColor(.text2)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 16).padding(.top, 8)
+                }
             case .viewing:
                 HStack {
                     Button(action: { model.phase = .idle }) {

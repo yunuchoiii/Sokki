@@ -217,13 +217,19 @@ enum Prompts {
         내용:
         - 결정, 할 일, 일정, 숫자, 요청, 이유처럼 나중에 다시 찾아볼 정보를 남긴다.
         - 군말, 같은 말 반복, 중간에 끊긴 말은 버린다.
-        - 말하다가 고친 부분("아니다", "아니 ~말고", "그게 아니라")은 고친 뒤의 내용만 남긴다.
+        - 말하다가 고친 부분("아니다", "아니 ~말고", "그게 아니라")은 고친 뒤의 내용만 남긴다. 다만 순서·우선순위·\
+          비교를 고친 것이면 비교 대상을 함께 적는다. "로그인 먼저… 아니다, 결제 먼저"는 "결제 먼저"가 아니라 \
+          "로그인 개선보다 결제 먼저"다. 무엇보다 먼저인지 빠지면 뜻이 없다.
         - 불릿만 읽어도 무엇에 관한 말인지 알 수 있게, 원문에 있는 주제(무엇의 준비물인지, 어떤 영화에 대한 평인지 등)를 살린다.
         - 누가 하는지("내가 쓸게", "제가 예매할게요")가 원문에 있으면 살린다.
-        - 시간은 원문에 있는 오전·오후·아침·저녁을 빼지 않는다.
         - 화자의 감정이나 평가("힘들었다", "뿌듯하다", "좋았다")가 말의 핵심이면 남긴다.
         - 상대에게 묻거나 부탁하는 말은 요청이라는 게 드러나게 남긴다.
+        - 결정의 강도를 원문 그대로 둔다. 고민("~할까, ~할까"), 바람("~있으면 좋겠다"), 제안("~하자는 거예요")을 \
+          결정("~하기", "~구현", "~변경")으로 바꾸지 않는다. 고민은 "~할지 고민", 바람은 "~ 있으면 좋겠음"처럼 남긴다.
         - 숫자·금액·날짜·시간·이름은 값을 바꾸지 않는다. 한글로 적힌 수는 아라비아 숫자로 써도 된다.
+        - 단위(만 원, 명, 개)와 오전·오후·아침·저녁은 원문에 있는 그대로만 쓴다. 말한 것은 빼지 않고, \
+          말하지 않은 것은 붙이지 않는다. "현금 32만 원"은 "32만 원"으로 남기고, "예산은 칠백"을 "700만 원"으로, \
+          "열 시"를 "오전 10시"로 바꾸지 않는다.
 
         절대 하면 안 되는 것:
         - 원문에 없는 사실, 해석, 평가, 조언을 덧붙이기.
@@ -308,13 +314,30 @@ enum Polisher {
     static var onStatus: ((String) -> Void)?
     static func report(_ text: String) { DispatchQueue.main.async { onStatus?(text) } }
 
+    /// 요약을 골랐는데 요약을 못 하고 문장만 다듬었을 때 알릴 말. 요약처럼 불릿을 붙여 내보내면 사용자는
+    /// 원문을 줄바꿈만 한 걸 요약이라고 받는다("이럴 거면 작대기는 왜 붙였냐", 2026-09-25). run 마다 새로 정한다.
+    static private(set) var fallbackNote: String?
+
     static func run(_ raw: String, completion: @escaping (Result<String, Error>) -> Void) {
+        fallbackNote = nil
         report(Prefs.backend.title)
         let fixed = Glossary.apply(to: raw)
         if fixed != raw { Log.write("용어 치환 적용: \(fixed.prefix(80))") }
         let summary = Prefs.style == .summary
         run(fixed, backend: Prefs.backend, allowFallback: true) { result in
-            completion(result.map { Prompts.enforceQuestionMarks(summary ? BulletSummary.tidy($0) : $0) })
+            completion(result.map { text in
+                guard summary else { return Prompts.enforceQuestionMarks(text) }
+                // 온디바이스는 요약 스타일이어도 불릿 없는 문장으로 돌려준다(AppleClient). 그걸 보고 알린다.
+                let isList = text.split(separator: "\n").contains { $0.trimmingCharacters(in: .whitespaces).hasPrefix("- ") }
+                guard isList else {
+                    fallbackNote = Prefs.backend == .apple
+                        ? "Apple AI 로는 요약이 안 돼 문장만 다듬었어요. 요약은 Gemini 무료 키로 됩니다"
+                        : "요약할 AI 모델이 응답하지 않아 이 맥에서 문장만 다듬었어요"
+                    Log.write("요약 대신 다듬기로 전달 (온디바이스)")
+                    return Prompts.enforceQuestionMarks(text)
+                }
+                return Prompts.enforceQuestionMarks(BulletSummary.removeUnsaidUnits(BulletSummary.tidy(text), raw: fixed))
+            })
         }
     }
 
@@ -334,13 +357,30 @@ enum Polisher {
         case .auto:
             runAuto(raw, completion: handle)
         case .gemini:
-            GeminiClient.shared.polish(raw, model: Prefs.geminiModel, style: Prefs.style, completion: handle)
+            geminiPolish(raw, completion: handle)
         case .apple:
             AppleClient.shared.polish(raw, style: Prefs.style, completion: handle)
         case .api:
             ClaudeClient.shared.polish(raw, model: Prefs.model, style: Prefs.style, completion: handle)
         case .cli:
             CLIClient.shared.polish(raw, model: Prefs.model, style: Prefs.style, completion: handle)
+        }
+    }
+
+    /// 요약 스타일이면 Gemini 가 한도 초과(429)·혼잡(503)으로 실패했을 때 3초 뒤 한 번 더 요청한다.
+    /// 요약은 온디바이스로 대신할 수 없어서(문장만 다듬는다) 한 번 더 기다릴 값어치가 있다.
+    /// 2026-09-25: 사용자가 말한 직후 세 모델이 429·429·503 → 온디바이스, 1분 뒤 같은 말은 Gemini 1.6초.
+    private static func geminiPolish(_ raw: String, completion: @escaping (Result<String, Error>) -> Void) {
+        GeminiClient.shared.polish(raw, model: Prefs.geminiModel, style: Prefs.style) { result in
+            guard Prefs.style == .summary, case .failure(let error) = result,
+                  case GeminiError.http(let code, _) = error, [429, 500, 502, 503, 504].contains(code) else {
+                completion(result); return
+            }
+            Log.write("요약: Gemini \(code) — 3초 뒤 한 번 더 요청")
+            report("Gemini 가 바빠서 3초 뒤 한 번 더 요청합니다")
+            DispatchQueue.global().asyncAfter(deadline: .now() + 3) {
+                GeminiClient.shared.polish(raw, model: Prefs.geminiModel, style: Prefs.style, completion: completion)
+            }
         }
     }
 
@@ -377,7 +417,7 @@ enum Polisher {
 
         report("온디바이스와 Gemini 를 동시에 요청 중…")
 
-        GeminiClient.shared.polish(raw, model: Prefs.geminiModel, style: Prefs.style) { result in
+        geminiPolish(raw) { result in
             switch result {
             case .success(let text):
                 finish(.success(text), from: "Gemini")
@@ -403,7 +443,10 @@ enum Polisher {
                 } else {
                     // 3B 모델은 가끔 문장을 통째로 빼먹는다. 원문 대비 절반 아래면 의심하고 Gemini 를 더 기다린다.
                     let suspicious = text.count < raw.count / 2
-                    let grace = suspicious ? Prefs.autoGraceSeconds + 3 : Prefs.autoGraceSeconds
+                    var grace = suspicious ? Prefs.autoGraceSeconds + 3 : Prefs.autoGraceSeconds
+                    // 요약은 온디바이스가 원문 표현을 나누는 데까지만 해서(말 고치기를 못 푼다) Gemini 를 훨씬 오래 기다린다.
+                    // "로그인 먼저… 결제는 그다음에. 아니다. 결제 먼저"를 온디바이스는 그대로 베꼈고 Claude 는 풀었다(2026-09-25).
+                    if Prefs.style == .summary { grace = max(grace, 12) }   // 재요청(3초 + 응답)까지 기다린다
                     report(suspicious ? "온디바이스 결과가 짧아 Gemini 답을 \(Int(grace))초 더 기다립니다"
                                       : "온디바이스 완료 — Gemini 답을 \(Int(grace))초만 더 기다립니다")
                     DispatchQueue.global().asyncAfter(deadline: .now() + grace) {
