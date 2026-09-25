@@ -61,6 +61,12 @@ if let i = CommandLine.arguments.firstIndex(of: "--render-icon"), i + 1 < Comman
 }
 
 // 진단용: 녹음 없이 정리 백엔드만 돌려 본다. 키는 환경변수(GEMINI_API_KEY 등)로도 넣을 수 있다.
+if let i = CommandLine.arguments.firstIndex(of: "--prompt"), i + 1 < CommandLine.arguments.count {
+    // 진단용: 모델에 넘어가는 요청문(말투·질문 규칙이 붙은 모습)을 그대로 본다. 모델은 부르지 않는다.
+    print(Prompts.userMessage(Glossary.apply(to: CommandLine.arguments[i + 1]), style: Prefs.style))
+    exit(0)
+}
+
 if let i = CommandLine.arguments.firstIndex(of: "--polish"), i + 1 < CommandLine.arguments.count {
     let done = DispatchSemaphore(value: 0)
     let started = Date()
