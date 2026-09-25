@@ -119,9 +119,15 @@ enum Prompts {
     static func userMessage(_ raw: String, style: PolishStyle) -> String {
         if style == .summary {
             // 모델에게 "원문대로"라고 하면 한쪽으로 쏠렸다 — "제가 예매할게요"를 "내가"로, 고치자 "내가 예약할게"를 "제가"로.
+            // 한국어 프롬프트에 "내가/제가"까지 넣으니 영어로 말한 것도 한국어로 번역해 요약했다(2026-09-25).
+            // 한글보다 로마자가 많으면 한국어 말이 아니라고 보고 원문 언어로 쓰게 한다.
+            let hangul = raw.unicodeScalars.filter { (0xAC00...0xD7A3).contains($0.value) }.count
+            let latin = raw.unicodeScalars.filter { $0.isASCII && CharacterSet.letters.contains($0) }.count
+            let korean = hangul * 2 >= latin   // 한글 한 글자가 로마자 두세 글자 몫이다
             let polite = politeness(of: raw) == .polite
-            let me = polite ? "제가" : "내가"
-            let meLabel = polite ? "저" : "나"   // "민수: … / 제가: …"처럼 이름표 자리에선 "저:"가 맞다(사용자 지적)
+            let me = korean ? (polite ? "제가" : "내가") : "I"
+            let meLabel = korean ? (polite ? "저" : "나") : "Me"   // 이름표 자리("민수: …")에선 "제가:"가 어색하다(사용자 지적)
+            let language = korean ? "" : "\n원문은 한국어가 아니다. 요약도 원문과 같은 언어로 쓴다. 한국어로 번역하지 않는다."
             // 받아쓰기가 반말 질문 끝에 마침표를 찍으면("못 하는 거야.") 모델이 평서문으로 읽고 "테스트 불가함"으로
             // 단정했다. 같은 문장이 질문으로 나왔다 단정으로 나왔다 했다. 문장 끝 마침표를 떼고 말투로 판단하게 한다.
             let unpunctuated = raw.replacingOccurrences(of: ". ", with: " / ")
@@ -133,7 +139,7 @@ enum Prompts {
             원문에는 문장부호가 없다. "/"는 말이 잠깐 끊긴 곳일 뿐 문장의 종류를 알려 주지 않는다. \
             각 문장이 묻는 말인지, 알리는 말인지, 부탁인지는 말투와 앞뒤 문맥으로 판단한다. \
             반말 "~거야", "~해", "~돼"는 질문일 때가 많다. 질문을 단정으로 바꾸지 않는다. \
-            "~하죠", "~하자", "~할게요", "~합시다"는 질문이 아니라 제안·약속이다.
+            "~하죠", "~하자", "~할게요", "~합시다"는 질문이 아니라 제안·약속이다.\(language)
 
             <원문>
             \(unpunctuated)
