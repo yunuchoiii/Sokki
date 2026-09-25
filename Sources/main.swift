@@ -67,7 +67,9 @@ if let i = CommandLine.arguments.firstIndex(of: "--polish"), i + 1 < CommandLine
     Polisher.run(CommandLine.arguments[i + 1]) { result in
         let secs = String(format: "%.1f", Date().timeIntervalSince(started))
         switch result {
-        case .success(let text): print("OK (\(secs)s) [\(Prefs.backend.rawValue)]\n\(text)")
+        case .success(let text):
+            print("OK (\(secs)s) [\(Prefs.backend.rawValue)]\n\(text)")
+            if let note = Polisher.fallbackNote { print("NOTE: \(note)") }
         case .failure(let error): print("FAIL (\(secs)s)\n\(error.localizedDescription)")
         }
         done.signal()
@@ -475,10 +477,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 switch result {
                 case .success(let text):
                     Log.write("Claude 정리 완료(\(text.count)자, \(secs)초)")
-                    self.deliver(record(text, polished: true), message: "완료 (\(secs)초)")
+                    self.model.doneNote = Polisher.fallbackNote ?? ""
+                    self.deliver(record(text, polished: true), message: Polisher.fallbackNote ?? "완료 (\(secs)초)")
                 case .failure(let error):
                     // 정리에 실패해도 말한 내용은 버리지 않는다.
                     Log.write("Claude 실패: \(error.localizedDescription)")
+                    self.model.doneNote = ""
                     let fallback = record(raw, polished: false)
                     self.deliver(fallback, message: "Claude 정리 실패, 원문 붙여넣음")
                     self.model.retryRecord = fallback

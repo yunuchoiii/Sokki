@@ -55,6 +55,16 @@ enum PreviewRenderer {
         model.rawExpanded = true
         snap("1c-done-expanded")
 
+        // 요약을 못 하고 온디바이스로 문장만 다듬었을 때
+        var fallback = samples[0]
+        fallback.summary = "다음 스프린트는 로그인 개선을 먼저 하구요. 결제가 더 급하니까 결제 먼저 하죠. 디자인은 목요일까지 받기로 했습니다."
+        fallback.title = HistoryStore.makeTitle(from: fallback.summary)
+        model.doneNote = "요약할 AI 모델이 응답하지 않아 이 맥에서 문장만 다듬었어요"
+        model.phase = .done(fallback, .copied)
+        model.rawExpanded = false
+        snap("1c-done-fallback")
+        model.doneNote = ""
+
         model.phase = .done(samples[0], .viewing)
         model.rawExpanded = false
         snap("1c-viewing")

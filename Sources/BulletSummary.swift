@@ -90,6 +90,19 @@ enum BulletSummary {
         return resolveCorrections(kept).map { "- " + $0 }.joined(separator: "\n")
     }
 
+    /// 온디바이스 요점들을 불릿 없는 문장으로 잇는다. 군말·말 고치기·되풀이 정리(tidy)는 그대로 거친다.
+    /// "~고", "~는데"처럼 이어지는 어미로 끝난 조각은 쉼표로 잇는다("볶고. 신 김치를 넣고."가 어색했다).
+    static func prose(from points: [String]) -> String {
+        let parts = tidy(points.map { "- " + $0 }.joined(separator: "\n"))
+            .split(separator: "\n").map { String($0.dropFirst(2)) }
+        let connectives = ["고", "는데", "은데", "다가", "면서", "며", "지만", "니까", "서"]
+        return parts.enumerated().map { i, s in
+            if ["?", "!", "~"].contains(where: s.hasSuffix) { return s }
+            let continues = i < parts.count - 1 && connectives.contains(where: s.hasSuffix)
+            return s + (continues ? "," : ".")
+        }.joined(separator: " ")
+    }
+
     /// 클라우드 모델이 말하지 않은 단위·시간대를 붙인 걸 뗀다. 프롬프트에 규칙과 예시를 넣어도 Gemini(3.1-flash-lite,
     /// 3.6-flash 둘 다)가 "예산은 칠백"을 "700만 원"으로, "열 시"를 "오전 10시"로 계속 바꿨다(2026-09-25).
     /// 원문에 그 말이 한 번도 없을 때만 뗀다 — "아침 아홉 시" → "오전 9시" 처럼 말한 걸 바꿔 쓴 건 둔다.

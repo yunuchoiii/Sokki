@@ -92,7 +92,8 @@ struct AppleClient {
                         let points = try await session.respond(to: "Transcript:\n" + prepared,
                                                                generating: OnDeviceSummary.self).content.points
                         if points.allSatisfy({ BulletSummary.isFaithful($0, to: prepared) }) {
-                            text = points.map { "- " + $0 }.joined(separator: "\n")
+                            // 3B 는 요점을 나누기만 하고 요약은 못 한다. 불릿을 붙이면 요약처럼 보여서 문장으로 잇는다.
+                            text = BulletSummary.prose(from: points)
                             break
                         }
                         Log.write("온디바이스 요약: 원문과 순서가 어긋난 불릿 — 다시 시도 (\(attempt)/3)")
