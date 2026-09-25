@@ -17,11 +17,32 @@ final class IntonationTracker {
 
     private var samples: [Float] = []
     private var sampleRate: Double = 48_000
-    private let keepSeconds = 2.5
+    /// 말을 마치고 단축키를 누르기까지 2초쯤 걸린다. 2.5초만 남겼더니 말이 처음 0.4초에만 걸려 측정이 안 됐다.
+    private let keepSeconds = 6.0
     private let lock = NSLock()
 
     func reset() {
         lock.lock(); samples.removeAll(keepingCapacity: true); lock.unlock()
+    }
+
+    /// 진단용: `defaults write com.brefly.dictation saveIntonationAudio -bool true` 일 때만 녹음 끝 소리를
+    /// Application Support/Brefly/intonation/ 에 남긴다. 사람 목소리에서 측정이 6번 중 5번 실패했는데
+    /// 로그 숫자로는 이유를 알 수 없었다(2026-09-25). 기본은 꺼져 있다 — 목소리를 디스크에 남기지 않는다.
+    private func saveForDiagnosis(_ x: [Float], sampleRate: Double) {
+        guard UserDefaults.standard.bool(forKey: "saveIntonationAudio"), !x.isEmpty,
+              let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 1),
+              let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(x.count)) else { return }
+        buffer.frameLength = AVAudioFrameCount(x.count)
+        x.withUnsafeBufferPointer { buffer.floatChannelData![0].update(from: $0.baseAddress!, count: x.count) }
+        let dir = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Application Support/Brefly/intonation", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let stamp = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(of: ":", with: "-")
+        let url = dir.appendingPathComponent("\(stamp).caf")
+        if let file = try? AVAudioFile(forWriting: url, settings: format.settings) {
+            try? file.write(from: buffer)
+            Log.write("억양 진단용 소리 저장: \(url.lastPathComponent)")
+        }
     }
 
     func append(_ buffer: AVAudioPCMBuffer) {
@@ -40,22 +61,44 @@ final class IntonationTracker {
         let rate = sampleRate
         let all = samples.suffix(Int(keepSeconds * rate))
         lock.unlock()
+        saveForDiagnosis(Array(all), sampleRate: rate)
 
         // 16kHz 로 솎아 계산량을 줄인다. 음높이(70~400Hz)에는 충분하다.
         let step = max(1, Int(rate / 16_000))
         let sr = rate / Double(step)
-        let x = stride(from: all.startIndex, to: all.endIndex, by: step).map { all[$0] }
-        guard x.count > Int(sr * 0.5) else { return nil }
+        // 솎기 전에 step 개씩 평균 낸다(간단한 저역 필터). 그냥 건너뛰면 고음 잡음이 접혀 들어와 음높이가 덜 잡혔다.
+        let src = Array(all)
+        let decimated = stride(from: 0, to: src.count - step + 1, by: step).map { i -> Float in
+            var s: Float = 0; for k in i..<(i + step) { s += src[k] }; return s / Float(step)
+        }
+        // 직류 성분(평균 치우침)을 뺀다. 마이크 입력에 치우침이 있으면 모든 지연에서 상관이 높게 나와 탐색 범위 끝
+        // (400Hz)이 뽑혔고, 그걸 잡음으로 버리다 보니 사람 목소리 1초에서 음높이 프레임이 1~12개만 남았다.
+        // 0.1초 이동 평균을 빼서 천천히 변하는 치우침까지 없앤다.
+        let dcWindow = max(1, Int(sr * 0.1))
+        var x = decimated
+        var running: Float = 0
+        for k in 0..<decimated.count {
+            running += decimated[k]
+            if k >= dcWindow { running -= decimated[k - dcWindow] }
+            x[k] = decimated[k] - running / Float(min(k + 1, dcWindow))
+        }
+        guard x.count > Int(sr * 0.5) else { Log.write("억양 측정 불가: 소리가 너무 짧음"); return nil }
 
-        // 말이 끝난 곳: 단축키를 누르기 전 침묵을 건너뛴다. 20ms 에너지가 최대의 10% 를 넘는 마지막 지점.
+        // 말이 끝난 곳: 단축키를 누르기 전 침묵을 건너뛴다. 기준은 배경 소음 바닥(20ms 음량 하위 20%)의 3배와
+        // 최대 음량의 25% 중 큰 값이고, 세 프레임 이어져야 말로 본다. "최대의 10%"로 잡았더니 작은 목소리에선
+        // 그게 소음 수준이라 말 끝을 녹음 맨 끝(침묵)으로 잡고 말 없는 구간을 분석했다(2026-09-25).
         let hop = Int(sr * 0.01), win = Int(sr * 0.04)
         func rms(_ a: Int, _ b: Int) -> Float {
             var s: Float = 0; for i in a..<b { s += x[i] * x[i] }; return sqrt(s / Float(b - a))
         }
         let energyFrame = Int(sr * 0.02)
         let energies = stride(from: 0, to: x.count - energyFrame, by: energyFrame).map { rms($0, $0 + energyFrame) }
-        guard let peak = energies.max(), peak > 0.003,
-              let lastLoud = energies.lastIndex(where: { $0 > max(peak * 0.1, 0.003) }) else { return nil }
+        guard let peak = energies.max(), peak > 0.003 else { Log.write("억양 측정 불가: 소리가 너무 작음"); return nil }
+        let floor = energies.sorted()[energies.count / 5]
+        let threshold = max(floor * 3, peak * 0.25)
+        guard let lastLoud = energies.indices.dropFirst(2).last(where: { k in
+            energies[k] > threshold && energies[k - 1] > threshold && energies[k - 2] > threshold
+        }) else { Log.write("억양 측정 불가: 말소리 구간을 못 찾음"); return nil }
         let speechEnd = (lastLoud + 1) * energyFrame
         let start = max(0, speechEnd - Int(sr * 0.8))
 
@@ -78,7 +121,7 @@ final class IntonationTracker {
             if best > 0.5, bestLag > minLag, bestLag < maxLag { track.append((Double(i) / sr, sr / Double(bestLag))) }
             i += hop
         }
-        guard track.count >= 8 else { return nil }
+        guard track.count >= 8 else { Log.write("억양 측정 불가: 음높이 잡힌 프레임 \(track.count)개"); return nil }
 
         // 반음으로 바꾸고, 앞뒤 다섯 프레임 중앙값에서 3반음 넘게 튄 프레임은 버린다. 말 끝에서 소리가 흐려지며
         // 음높이를 반으로 잡는 옥타브 오류가 "-7 -7 -7"로 나와 올린 억양을 "내려감"으로 뒤집었다.
@@ -92,11 +135,11 @@ final class IntonationTracker {
         // 말이 끝나며 소리가 흐려지는 마지막 세 프레임은 버린다. "+2 +2 +1 +1 +1 -6"처럼 끝 한 프레임이
         // 튀어 올린 억양을 평평하게 만들었다(사람 목소리, 2026-09-25). 몰려서 튀면 이웃 중앙값 필터로도 안 걸린다.
         let steady = Array(st.dropLast(3))
-        guard steady.count >= 6, let lastT = steady.last?.t else { return nil }
+        guard steady.count >= 6, let lastT = steady.last?.t else { Log.write("억양 측정 불가: 걸러낸 뒤 \(steady.count)프레임"); return nil }
 
         // 마지막 0.35초의 기울기(최소제곱). 끝 몇 프레임만 비교하면 한두 프레임에 휘둘렸다.
         let window = steady.filter { $0.t >= lastT - 0.35 }
-        guard window.count >= 5 else { return nil }
+        guard window.count >= 5 else { Log.write("억양 측정 불가: 끝 0.35초에 \(window.count)프레임"); return nil }
         let mt = window.map(\.t).reduce(0, +) / Double(window.count)
         let ms = window.map(\.st).reduce(0, +) / Double(window.count)
         let num = window.reduce(0) { $0 + ($1.t - mt) * ($1.st - ms) }
