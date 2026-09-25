@@ -135,7 +135,15 @@ enum Prefs {
 
     static var style: PolishStyle {
         get { PolishStyle(rawValue: d.string(forKey: "style") ?? "") ?? .standard }
-        set { d.set(newValue.rawValue, forKey: "style") }
+        set {
+            d.set(newValue.rawValue, forKey: "style")
+            if newValue != .summary { d.set(newValue.rawValue, forKey: "plainStyle") }
+        }
+    }
+
+    /// 요약을 켜기 전에 쓰던 정리 스타일. 팝오버의 '핵심 요약' 토글을 끄면 여기로 돌아간다.
+    static var plainStyle: PolishStyle {
+        PolishStyle(rawValue: d.string(forKey: "plainStyle") ?? "").flatMap { $0 == .summary ? nil : $0 } ?? .standard
     }
 
     // MARK: 화자 정보 · 용어 사전 (정리 프롬프트에 들어간다)

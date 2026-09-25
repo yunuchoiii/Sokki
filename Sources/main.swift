@@ -833,6 +833,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             self?.settings.show()
         }
         model.actions.quit = { NSApp.terminate(nil) }
+        // 설정 창 모델을 거쳐 바꿔야 설정 창의 '정리 스타일'도 같이 바뀌고 prefsChanged 가 돈다.
+        model.actions.setSummary = { [weak self] on in
+            self?.settings.model.style = on ? .summary : Prefs.plainStyle
+        }
         model.actions.openLog = { [weak self] in self?.openLog() }
         model.actions.cancelPolish = { [weak self] in
             guard let self, case .polishing = self.model.phase else { return }
