@@ -119,7 +119,7 @@ struct CLIClient {
     private func arguments(raw: String, model: String, style: PolishStyle,
                            skipping: Set<String>) -> [String] {
         var args = [
-            "-p", Prompts.userMessage(raw),
+            "-p", Prompts.userMessage(raw, style: style),
             "--system-prompt", Prompts.system(for: style),
             "--model", alias(for: model),
             "--output-format", "text"
