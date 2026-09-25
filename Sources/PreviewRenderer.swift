@@ -11,9 +11,13 @@ enum PreviewRenderer {
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
 
         let now = Date()
+        // 첫 기록은 README 캡처로 쓰인다. 앱이 실제로 내는 결과만 넣는다 — 전에 시안의 가짜 제목·불릿을 넣었다가
+        // 사용자가 "요약을 전혀 안 하는데 사기 아니냐"고 했다. 아래는 이 원문을 '핵심 요약' 스타일·Haiku 로
+        // 돌린 출력 그대로다(2026-09-25). 제목도 앱과 같은 코드로 뽑는다.
+        let doneSummary = "- 온보딩 첫 화면: 설명 제거, 마이크 버튼 누르도록 유도\n- 단축키 안내: 처음 한 번만 표시\n- 다음 주까지 시안 2개 준비, 금요일 리뷰"
         let samples = [
-            SummaryRecord(title: "마케팅 회의 정리 — 3가지 액션 아이템",
-                          summary: "- 온보딩 첫 화면은 설명 대신 **마이크 버튼을 바로 누르게** 유도\n- 단축키(⌥Space) 안내를 첫 실행 시 한 번만 노출\n- 다음 주까지 시안 2개 준비 — 금요일 리뷰",
+            SummaryRecord(title: HistoryStore.makeTitle(from: doneSummary),
+                          summary: doneSummary,
                           raw: "그래서 온보딩 첫 화면은 지금처럼 설명을 길게 쓰지 말고, 사용자가 바로 마이크 버튼을 누르게 유도하는 게 좋을 것 같고요, 아 그리고 아까 말했던 단축키 안내도 매번 보여줄 필요는 없고 처음 한 번만… 아 맞다, 다음 주까지 시안 두 개 준비해서 금요일에 리뷰하죠.",
                           date: now.addingTimeInterval(-14 * 60), duration: 160, localeID: "ko-KR", polished: true),
             SummaryRecord(title: "아이디어 메모 — 신규 온보딩 개선안",
