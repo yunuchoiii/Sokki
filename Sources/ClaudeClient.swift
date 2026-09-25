@@ -220,10 +220,14 @@ enum Prompts {
         - 말하다가 고친 부분("아니다", "아니 ~말고", "그게 아니라")은 고친 뒤의 내용만 남긴다.
         - 불릿만 읽어도 무엇에 관한 말인지 알 수 있게, 원문에 있는 주제(무엇의 준비물인지, 어떤 영화에 대한 평인지 등)를 살린다.
         - 누가 하는지("내가 쓸게", "제가 예매할게요")가 원문에 있으면 살린다.
-        - 시간은 원문에 있는 오전·오후·아침·저녁을 빼지 않는다.
         - 화자의 감정이나 평가("힘들었다", "뿌듯하다", "좋았다")가 말의 핵심이면 남긴다.
         - 상대에게 묻거나 부탁하는 말은 요청이라는 게 드러나게 남긴다.
+        - 결정의 강도를 원문 그대로 둔다. 고민("~할까, ~할까"), 바람("~있으면 좋겠다"), 제안("~하자는 거예요")을 \
+          결정("~하기", "~구현", "~변경")으로 바꾸지 않는다. 고민은 "~할지 고민", 바람은 "~ 있으면 좋겠음"처럼 남긴다.
         - 숫자·금액·날짜·시간·이름은 값을 바꾸지 않는다. 한글로 적힌 수는 아라비아 숫자로 써도 된다.
+        - 단위(만 원, 명, 개)와 오전·오후·아침·저녁은 원문에 있는 그대로만 쓴다. 말한 것은 빼지 않고, \
+          말하지 않은 것은 붙이지 않는다. "현금 32만 원"은 "32만 원"으로 남기고, "예산은 칠백"을 "700만 원"으로, \
+          "열 시"를 "오전 10시"로 바꾸지 않는다.
 
         절대 하면 안 되는 것:
         - 원문에 없는 사실, 해석, 평가, 조언을 덧붙이기.
@@ -314,7 +318,9 @@ enum Polisher {
         if fixed != raw { Log.write("용어 치환 적용: \(fixed.prefix(80))") }
         let summary = Prefs.style == .summary
         run(fixed, backend: Prefs.backend, allowFallback: true) { result in
-            completion(result.map { Prompts.enforceQuestionMarks(summary ? BulletSummary.tidy($0) : $0) })
+            completion(result.map {
+                Prompts.enforceQuestionMarks(summary ? BulletSummary.removeUnsaidUnits(BulletSummary.tidy($0), raw: fixed) : $0)
+            })
         }
     }
 
@@ -403,7 +409,10 @@ enum Polisher {
                 } else {
                     // 3B 모델은 가끔 문장을 통째로 빼먹는다. 원문 대비 절반 아래면 의심하고 Gemini 를 더 기다린다.
                     let suspicious = text.count < raw.count / 2
-                    let grace = suspicious ? Prefs.autoGraceSeconds + 3 : Prefs.autoGraceSeconds
+                    var grace = suspicious ? Prefs.autoGraceSeconds + 3 : Prefs.autoGraceSeconds
+                    // 요약은 온디바이스가 원문 표현을 나누는 데까지만 해서(말 고치기를 못 푼다) Gemini 를 훨씬 오래 기다린다.
+                    // "로그인 먼저… 결제는 그다음에. 아니다. 결제 먼저"를 온디바이스는 그대로 베꼈고 Claude 는 풀었다(2026-09-25).
+                    if Prefs.style == .summary { grace = max(grace, 8) }
                     report(suspicious ? "온디바이스 결과가 짧아 Gemini 답을 \(Int(grace))초 더 기다립니다"
                                       : "온디바이스 완료 — Gemini 답을 \(Int(grace))초만 더 기다립니다")
                     DispatchQueue.global().asyncAfter(deadline: .now() + grace) {
