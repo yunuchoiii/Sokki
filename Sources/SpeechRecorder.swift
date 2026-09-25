@@ -44,6 +44,10 @@ final class SpeechRecorder {
     private var safetyTimer: DispatchWorkItem?
     /// 이번 녹음에서 마이크가 넘긴 버퍼 수. 0 이면 말이 없는 게 아니라 마이크가 안 잡힌 것.
     private(set) var bufferCount = 0
+    /// 녹음 끝부분 소리. 멈출 때 말 끝 억양을 잰다.
+    private let intonationTracker = IntonationTracker()
+    /// 마지막 녹음의 말 끝 억양. 못 쟀으면 nil.
+    private(set) var lastIntonation: Intonation?
     private var configObserver: NSObjectProtocol?
     private var levelHandler: ((Float) -> Void)?
 
@@ -93,6 +97,8 @@ final class SpeechRecorder {
         earlyFinal = false
         bufferCount = 0
         completion = nil
+        intonationTracker.reset()
+        lastIntonation = nil
 
         let req = SFSpeechAudioBufferRecognitionRequest()
         req.shouldReportPartialResults = true
@@ -152,7 +158,6 @@ final class SpeechRecorder {
                 }
                 if result.isFinal {
                     Log.write("최종 인식 결과 수신: \(raw.count)자")
-                    self.logProsody(result.bestTranscription)
                     self.finishOrMarkEarly()
                 }
             }
@@ -163,28 +168,6 @@ final class SpeechRecorder {
                 self.finishOrMarkEarly()
             }
         }
-    }
-
-    /// 진단용: 단어마다 끝부분 음높이가 가운데보다 올라갔는지(+) 내려갔는지(-) 로그에 남긴다.
-    /// "밥 먹었어"와 "밥 먹었어?"는 글자로는 같고 억양으로만 갈린다. 인식기가 음높이(voiceAnalytics)를 주는지,
-    /// 서버 인식에서도 오는지부터 본다(2026-09-25). 값이 믿을 만하면 문장 끝 억양을 요약·다듬기에 힌트로 넘긴다.
-    private func logProsody(_ transcription: SFTranscription) {
-        guard #available(macOS 14.0, *) else { return }
-        let segments = transcription.segments
-        let analyzed = segments.filter { $0.voiceAnalytics != nil }
-        guard !analyzed.isEmpty else {
-            Log.write("억양 정보 없음 (단어 \(segments.count)개, 인식 방식: \(usingOnDevice ? "온디바이스" : "애플 서버"))")
-            return
-        }
-        let parts = analyzed.map { seg -> String in
-            let pitch = seg.voiceAnalytics!.pitch.acousticFeatureValuePerFrame
-            let third = pitch.count / 3
-            guard third >= 2 else { return "\(seg.substring)(짧음)" }
-            let middle = pitch[third..<(2 * third)].reduce(0, +) / Double(third)
-            let end = pitch[(pitch.count - third)...].reduce(0, +) / Double(third)
-            return String(format: "%@ %+.2f", seg.substring, end - middle)
-        }
-        Log.write("억양(단어 끝 음높이 변화): " + parts.joined(separator: " · "))
     }
 
     /// 녹음을 멈추고 (최종 텍스트, 오류)를 completion으로 넘긴다.
@@ -201,6 +184,7 @@ final class SpeechRecorder {
         releaseEngine()
         request?.endAudio()
         Log.write("녹음 종료 — 오디오 버퍼 \(bufferCount)개 전달됨")
+        lastIntonation = intonationTracker.analyze()
 
         if bufferCount == 0 {
             Log.write("⚠️ 마이크에서 버퍼가 하나도 안 왔습니다. 입력 장치/권한 문제.")
@@ -271,6 +255,7 @@ final class SpeechRecorder {
             guard let self else { return }
             self.bufferCount += 1
             req.append(buffer)
+            self.intonationTracker.append(buffer)
             if let onLevel = self.levelHandler {
                 let level = Self.level(of: buffer)
                 DispatchQueue.main.async { onLevel(level) }

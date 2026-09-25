@@ -63,14 +63,23 @@ if let i = CommandLine.arguments.firstIndex(of: "--render-icon"), i + 1 < Comman
 // 진단용: 녹음 없이 정리 백엔드만 돌려 본다. 키는 환경변수(GEMINI_API_KEY 등)로도 넣을 수 있다.
 if let i = CommandLine.arguments.firstIndex(of: "--prompt"), i + 1 < CommandLine.arguments.count {
     // 진단용: 모델에 넘어가는 요청문(말투·질문 규칙이 붙은 모습)을 그대로 본다. 모델은 부르지 않는다.
-    print(Prompts.userMessage(Glossary.apply(to: CommandLine.arguments[i + 1]), style: Prefs.style))
+    let hint: Intonation.Direction? = CommandLine.arguments.firstIndex(of: "--intonation").flatMap { j in
+        j + 1 < CommandLine.arguments.count ? ["up": .rising, "down": .falling][CommandLine.arguments[j + 1]] : nil
+    }
+    let text = Glossary.apply(to: CommandLine.arguments[i + 1])
+    Prompts.setIntonation(hint, raw: text)
+    print(Prompts.userMessage(text, style: Prefs.style))
     exit(0)
 }
 
 if let i = CommandLine.arguments.firstIndex(of: "--polish"), i + 1 < CommandLine.arguments.count {
     let done = DispatchSemaphore(value: 0)
     let started = Date()
-    Polisher.run(CommandLine.arguments[i + 1]) { result in
+    // 진단용: --intonation up|down 으로 녹음 끝 억양을 흉내 낸다.
+    let hint: Intonation.Direction? = CommandLine.arguments.firstIndex(of: "--intonation").flatMap { j in
+        j + 1 < CommandLine.arguments.count ? ["up": .rising, "down": .falling][CommandLine.arguments[j + 1]] : nil
+    }
+    Polisher.run(CommandLine.arguments[i + 1], intonation: hint) { result in
         let secs = String(format: "%.1f", Date().timeIntervalSince(started))
         switch result {
         case .success(let text):
@@ -473,7 +482,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
 
         let startedAt = Date()
-        Polisher.run(raw) { result in
+        // 억양은 방금 녹음한 소리에서만 잰다. "다시 요약"은 예전 기록이라 없다.
+        let intonation = old == nil ? recorder.lastIntonation?.direction : nil
+        Polisher.run(raw, intonation: intonation) { result in
             DispatchQueue.main.async {
                 guard generation == self.polishGeneration else {
                     Log.write("취소된 요약 결과 무시")
