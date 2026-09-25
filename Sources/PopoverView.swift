@@ -59,29 +59,23 @@ struct IdleView: View {
                 }
                 .foregroundColor(.onPrimary)
                 .frame(maxWidth: .infinity).frame(height: 42)
+                // 제목은 가운데 그대로 두고 단축키만 오른쪽에 붙인다. HStack 에 넣으면 제목이 왼쪽으로 밀린다.
+                .overlay(alignment: .trailing) {
+                    KeyCap(model.hotKeyTitle, accent: true).padding(.trailing, 12)
+                }
                 .background(Color.primaryFill)
                 .cornerRadius(10)
             }
             .buttonStyle(.plain)
-            .padding(.horizontal, 16).padding(.top, 14)
-
-            HStack(spacing: 6) {
-                Text("어디서든")
-                KeyCap(model.hotKeyTitle)
-                Text("로 시작")
-            }
-            .font(.system(size: 12)).foregroundColor(.text3)
-            .padding(.top, 10).padding(.bottom, 12)
+            .padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 12)
 
             HStack(spacing: 10) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("핵심 요약").font(.system(size: 13, weight: .semibold)).foregroundColor(.ink)
-                    Text(model.summaryOn ? "요점만 짧게 불릿으로 정리합니다" : "말한 내용을 빠짐없이 다듬습니다")
-                        .font(.system(size: 11.5)).foregroundColor(.text3)
-                }
+                Text("핵심 요약").font(.system(size: 13, weight: .semibold)).foregroundColor(.ink)
                 Spacer()
                 Toggle("", isOn: Binding(get: { model.summaryOn }, set: { model.actions.setSummary($0) }))
                     .toggleStyle(.switch).labelsHidden().controlSize(.small)
+                    // 기본 스위치는 시스템 강조색(파랑)을 쓴다. 테마 코랄로 맞춘다.
+                    .tint(.coral)
             }
             .padding(.horizontal, 16).padding(.bottom, 12)
 
@@ -550,13 +544,25 @@ struct HairLine: View {
 
 struct KeyCap: View {
     let label: String
-    init(_ label: String) { self.label = label }
+    /// 녹음 시작 버튼 안에 놓이는 형태. 테두리 없이 밝은 회색 칩에 코랄 글자를 쓴다.
+    ///
+    /// ⚠️ 칩 배경을 한 색으로 고정하면 안 된다. 버튼이 모드에 따라 검정(ink 0x16181d)과
+    /// 흰색(darkTextMain 0xf2f3f5)으로 뒤집히므로, 칩도 그 반대편이 아니라
+    /// **버튼색에서 한 단계 떨어진 값**이어야 형태가 남는다.
+    /// 라이트는 검은 버튼 위 어두운 회색(darkLine), 다크는 흰 버튼 위 밝은 회색(lineStrong).
+    /// 한때 fill(0xf2f3f5)로 고정했다가 다크 버튼색과 값이 같아 칩이 통째로 사라진 적이 있다.
+    let accent: Bool
+    init(_ label: String, accent: Bool = false) { self.label = label; self.accent = accent }
     var body: some View {
         Text(label)
-            .font(.system(size: 11, weight: .semibold)).foregroundColor(.text2)
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundColor(accent ? .coral : .text2)
             .padding(.horizontal, 6).padding(.vertical, 2)
-            .background(Color.fill)
-            .overlay(RoundedRectangle(cornerRadius: 5).stroke(Color.lineStrong, lineWidth: 1))
+            .background(accent ? Color(nsColor: Theme.dyn(Theme.darkLine, Theme.lineStrong)) : Color.fill)
+            .overlay(
+                RoundedRectangle(cornerRadius: 5)
+                    .stroke(accent ? Color.clear : Color.lineStrong, lineWidth: 1)
+            )
             .cornerRadius(5)
     }
 }
