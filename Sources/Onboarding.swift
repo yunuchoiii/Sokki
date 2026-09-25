@@ -398,8 +398,7 @@ final class OnboardingModel: ObservableObject {
 
     func openAccessibilitySettings() {
         guard !previewMode else { return }
-        _ = Paster.requestTrust()
-        SystemSettings.open(.accessibility)
+        Paster.sendToSettings { SystemSettings.open(.accessibility) }
     }
 
     /// AXIsProcessTrusted 는 폴링만 된다. 2초마다 확인하다 켜지면 멈춘다.
@@ -451,6 +450,14 @@ enum SystemSettings {
                                              "x-apple.systempreferences:com.apple.preference.keyboard"]
             }
         }
+    }
+
+    /// 권한 목록이 있는 곳을 사람이 읽는 경로로. macOS 27 에서 '손쉬운 사용' 목록 이름이 '기기 제어 및 데이터 접근'으로
+    /// 바뀌었다. 옛 이름으로 안내했더니 사용자가 왼쪽 목록의 '손쉬운 사용'(화면 확대 같은 기능 메뉴)을 뒤졌다.
+    static var accessibilityPath: String {
+        let list = ProcessInfo.processInfo.isOperatingSystemAtLeast(OperatingSystemVersion(majorVersion: 27, minorVersion: 0, patchVersion: 0))
+            ? "기기 제어 및 데이터 접근" : "손쉬운 사용"
+        return "시스템 설정 > 개인정보 보호 및 보안 > \(list)"
     }
 
     static func open(_ pane: Pane) {

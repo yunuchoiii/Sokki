@@ -16,6 +16,23 @@ enum Paster {
         return AXIsProcessTrustedWithOptions([key: true] as CFDictionary)
     }
 
+    /// 권한을 켜러 보낼 때 창을 하나만 띄운다. 예전엔 macOS 권한 요청 창("…제어하려고 합니다 [시스템 설정 열기]")과
+    /// 시스템 설정을 동시에 열어서 사용자가 "항상 두 개가 같이 뜬다"고 했다.
+    /// 요청 창은 앱이 목록에 없을 때만 뜬다. 그래서 먼저 요청해 보고, 요청 창이 떴으면 거기 맡기고
+    /// 안 떴으면(이미 목록에 있음) 시스템 설정을 연다.
+    static func sendToSettings(open: @escaping () -> Void) {
+        requestTrust()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
+            if !systemPromptVisible { open() }
+        }
+    }
+
+    /// macOS 권한 요청 창(universalAccessAuthWarn)이 화면에 있는지. 창 주인 이름은 화면 기록 권한 없이도 읽힌다.
+    private static var systemPromptVisible: Bool {
+        let windows = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]] ?? []
+        return windows.contains { ($0[kCGWindowOwnerName as String] as? String)?.contains("AuthWarn") == true }
+    }
+
     /// 합성 Cmd+V 가 막히는 또 다른 경우. 암호 필드처럼 보안 입력이 켜져 있으면 이벤트가 조용히 버려진다.
     static var secureInputOn: Bool { IsSecureEventInputEnabled() }
 
