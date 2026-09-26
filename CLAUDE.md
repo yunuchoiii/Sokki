@@ -17,11 +17,9 @@ git 규칙(브랜치·커밋·PR)은 전역 `git-workflow` 스킬을 따른다. 
 
 다른 컴퓨터·다른 세션이 이어서 작업할 때 먼저 볼 것. **끝나면 지운다** — 오래 두면 거짓말이 된다.
 
-- ⚠️ **업데이트 창 한국어 표시가 아직 화면으로 확인되지 않았다.** 번들이 ko 를 고르는 것까지만 봤다
-  (`Bundle.preferredLocalizations` 가 `["ko"]`). 0.7.1 에서 설정 > 업데이트 > 확인을 눌렀을 때
-  "최신 버전입니다" 가 한국어로 뜨는지 사용자에게 확인받고 이 줄을 지운다.
-- **다운로드 수치는 0.7.0 이 분기점이다.** 0.6.0·0.6.1 의 버전 붙은 DMG 는 둘 다 0회였고
-  (수동 4단계라 아무도 안 했다), 0.7.0 도 수동이다. 0.7.1 부터가 진짜 자동 업데이트 수치다.
+- **버전 붙은 DMG 의 다운로드 수 = Sparkle 이 받아 간 횟수**(2026-09-26 부터). 고정 이름 `Brefly.dmg`
+  는 사람이 직접 받은 것이다. 그 앞 숫자와 비교하면 안 된다 — 0.6.0·0.6.1 은 둘 다 0회였는데
+  "안 쓴다"가 아니라 "수동 4단계라 안 했다"였다.
   `gh api repos/yunuchoiii/brefly/releases --jq '[.[].assets[].download_count] | add'` (2026-09-26 기준 40)
   ⚠️ 검증한다고 DMG 를 curl 로 받지 말 것 — 집계에 섞인다(한 번 그래서 기준점이 오염됐다).
   에셋 존재 확인은 `gh api repos/yunuchoiii/brefly/releases/tags/vX.Y.Z --jq '.assets[]'` 로 한다.
@@ -29,8 +27,6 @@ git 규칙(브랜치·커밋·PR)은 전역 `git-workflow` 스킬을 따른다. 
   `gh api repos/yunuchoiii/brefly/traffic/popular/referrers`
 - SEO 는 Search Console 등록·사이트맵·색인 요청까지 끝났다. 남은 건 **백링크뿐이고 사람만 할 수 있다**
   (GeekNews·디스콰이엇 등). 올릴 때 "Brefly(브레플리)" 형태로 한글 이름을 같이 써야 이름이 연결된다.
-- ⚠️ **Sparkle 서명 개인키 백업을 사용자에게 아직 확인받지 못했다.** 로그인 키체인의
-  `https://sparkle-project.org` / 계정 `ed25519`. 잃으면 업데이트를 영영 못 보낸다.
 
 ## 빌드 · 검증 · 배포
 
@@ -69,7 +65,9 @@ git 규칙(브랜치·커밋·PR)은 전역 `git-workflow` 스킬을 따른다. 
   아무 출력이 없으면 통과다(틀리면 `failed to pass signing verification`). `-p` 와 `--verify` 는 같이 못 쓴다.
 - ⚠️ **Sparkle 업데이트 서명 개인키**는 로그인 키체인의 `https://sparkle-project.org` / 계정 `ed25519` 다.
   잃으면 기존 사용자에게 업데이트를 영영 보낼 수 없다 — 다시 설치하게 하는 것 말고 방법이 없다.
-  Developer ID 인증서와 같이 백업한다.
+  **2026-09-26 에 사용자가 따로 백업해 뒀다**(이 맥은 Time Machine 도 iCloud 키체인 동기화도 안 쓴다).
+  다른 맥에서 릴리스해야 하면 `vendor/bin/generate_keys -f <키파일>` 로 되돌린다.
+  뽑을 때는 `-x <파일>` 인데, 평문이라 저장한 뒤 `rm -P` 로 지운다.
 - ⚠️ **릴리스 DMG 는 아무 맥에서나 못 만든다.** Developer ID 인증서와 notarytool 프로필 `brefly` 가
   특정 맥 키체인에 있고, `make-dmg.sh` 는 터미널에 Finder 자동화 권한을 요구한다. 그 맥이 아니면
   코드·PR·문서까지만 하고 DMG 와 릴리스는 넘긴다. `build/` 는 git 에 안 들어간다.
