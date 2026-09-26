@@ -10,23 +10,20 @@ git 규칙(브랜치·커밋·PR)은 전역 `git-workflow` 스킬을 따른다. 
   `Prefs.migrateFromPreviousNamesIfNeeded()` 가 한 번만 옮겨온다. 코드·문서에 "Sokki" 가 남아 있으면 지운다.
 - **저장소는 소문자** `yunuchoiii/brefly`, 랜딩 페이지는 `yunuchoiii/brefly-pages`
   (배포 주소 https://yunuchoiii.github.io/brefly-pages/).
-- 최신 릴리스 **v0.6.1**(팝오버·설정 창 UI 다듬기). dev 에 미릴리스 수정 없음.
+- 최신 릴리스 **v0.7.0**(앱이 스스로 업데이트를 받아 교체한다). dev 에 미릴리스 수정 없음.
 - 후원: GitHub Sponsors `yunuchoiii`. `.github/FUNDING.yml`, README, 설정 > 업데이트 탭에 링크.
 
-## 이어받는 사람에게 (2026-09-25)
+## 이어받는 사람에게 (2026-09-26)
 
 다른 컴퓨터·다른 세션이 이어서 작업할 때 먼저 볼 것. **끝나면 지운다** — 오래 두면 거짓말이 된다.
 
-- ⚠️ **릴리스 DMG 는 아무 맥에서나 못 만든다.** Developer ID 인증서와 notarytool 프로필 `brefly` 가
-  특정 맥 키체인에 있고, `make-dmg.sh` 는 터미널에 Finder 자동화 권한을 요구한다. 그 맥이 아니면
-  코드·PR·문서까지만 하고 DMG 와 릴리스는 넘긴다. `build/` 는 git 에 안 들어간다.
-- **아직 확인하지 못한 것 둘.** 0.6.0 으로 나갔지만 실제 동작을 못 봤다.
-  ① 로그인 시 자동 실행이 실제로 시스템 설정의 로그인 항목에 등록되는지(화면만 렌더로 봤다)
-  ② 붙여넣기가 Chrome·ChatGPT 에서도 되는지(Orca 에서만 확인).
-- **다운로드 기준점 38회**(2026-09-20 밤). 벨로그 글 효과를 이 숫자와 비교해 잰다.
+- **다운로드 측정.** 0.6.0 부터 신규와 기존이 파일명으로 갈린다.
+  `Brefly.dmg` = 새로 받는 사람, `Brefly-X.Y.Z.dmg` = 기존 사용자 업데이트(= 실사용자 하한선).
+  2026-09-26 기준 총 39회이고 **0.6.0·0.6.1 은 둘 다 0회** — 아직 업데이트한 사람이 없다.
   `gh api repos/yunuchoiii/brefly/releases --jq '[.[].assets[].download_count] | add'`
-  ⚠️ 검증한다고 DMG 를 curl 로 받지 말 것 — 집계에 섞여 기준점이 오염된다(한 번 그랬다).
-  ⚠️ GitHub Traffic(유입 경로)은 **14일만 보관**된다. `velog.io` 가 찍혔는지 그 안에 봐야 한다.
+  ⚠️ 검증한다고 DMG 를 curl 로 받지 말 것 — 집계에 섞인다(한 번 그래서 기준점이 오염됐다).
+- **GitHub Traffic 은 14일만 보관**된다. 2026-09-20 벨로그 글의 유입(`velog.io`)을 보려면 10월 4일 전에 봐야 한다.
+  `gh api repos/yunuchoiii/brefly/traffic/popular/referrers`
 - SEO 는 Search Console 등록·사이트맵·색인 요청까지 끝났다. 남은 건 **백링크뿐이고 사람만 할 수 있다**
   (GeekNews·디스콰이엇 등). 올릴 때 "Brefly(브레플리)" 형태로 한글 이름을 같이 써야 이름이 연결된다.
 
@@ -50,9 +47,21 @@ git 규칙(브랜치·커밋·PR)은 전역 `git-workflow` 스킬을 따른다. 
   `gh release create vX.Y.Z build/Brefly-X.Y.Z.dmg build/Brefly.dmg` →
   **DMG 두 개를 반드시 같이 올린다.** 고정 이름 `Brefly.dmg` 는 README·랜딩 페이지의 바로 받기 링크,
   버전 붙은 `Brefly-X.Y.Z.dmg` 는 앱 안 업데이트 버튼이 가리킨다. 둘을 갈라 둬야 GitHub 다운로드 수로
-  신규 설치와 기존 사용자 업데이트를 구분할 수 있다(`UpdateChecker.downloadURL(for:)`). 빠뜨리면 404 다. →
-  `gh workflow run pages.yml -R yunuchoiii/brefly-pages`(랜딩 페이지가 릴리스 노트를 빌드 때 가져오므로 다시 빌드). 태그를 머지 전에 찍으면 첫 커밋을 가리킨다(v0.1.0 에서 실수).
+  신규 설치와 기존 사용자 업데이트를 구분할 수 있다. 빠뜨리면 앱 안 업데이트가 404 다. →
+  **`./make-appcast.sh` → 나온 `build/appcast/appcast.xml` 을 `brefly-pages` 의 `public/appcast.xml` 로
+  올리고 배포** → `gh workflow run pages.yml -R yunuchoiii/brefly-pages`(랜딩 페이지가 릴리스 노트를
+  빌드 때 가져오므로 다시 빌드). 태그를 머지 전에 찍으면 첫 커밋을 가리킨다(v0.1.0 에서 실수).
   GitHub Actions 워크플로는 인증서가 없어 공증이 안 되므로 수동 실행 전용.
+- ⚠️ **appcast 를 안 올리면 아무도 업데이트를 못 받는다.** 앱은 `SUFeedURL`(랜딩 페이지의
+  `appcast.xml`)만 본다. GitHub 릴리스를 올려도 appcast 가 그대로면 새 버전이 없는 것으로 보인다.
+  `make-appcast.sh` 출력에 `sparkle:edSignature` 가 있는지 매번 확인할 것 — 비어 있으면 앱이 거부한다.
+  비는 원인은 대개 DMG 안 앱의 Info.plist 에 `SUPublicEDKey` 가 없는 것이고, Sparkle 은 **경고 없이** 생략한다.
+- ⚠️ **Sparkle 업데이트 서명 개인키**는 로그인 키체인의 `https://sparkle-project.org` / 계정 `ed25519` 다.
+  잃으면 기존 사용자에게 업데이트를 영영 보낼 수 없다 — 다시 설치하게 하는 것 말고 방법이 없다.
+  Developer ID 인증서와 같이 백업한다.
+- ⚠️ **릴리스 DMG 는 아무 맥에서나 못 만든다.** Developer ID 인증서와 notarytool 프로필 `brefly` 가
+  특정 맥 키체인에 있고, `make-dmg.sh` 는 터미널에 Finder 자동화 권한을 요구한다. 그 맥이 아니면
+  코드·PR·문서까지만 하고 DMG 와 릴리스는 넘긴다. `build/` 는 git 에 안 들어간다.
 
 ## 구조에서 안 보이는 결정들
 
@@ -101,8 +110,14 @@ git 규칙(브랜치·커밋·PR)은 전역 `git-workflow` 스킬을 따른다. 
 - **녹음 중 다른 소리 낮추기**(`AudioDucker`): 기본 출력 볼륨을 ×0.3. 블루투스는 1초 뒤 macOS 가 이미 낮췄는지
   보고 안 낮췄을 때만 우리가 낮춘다(에어팟은 통화 모드로 알아서 낮춘다). HDMI 출력은 볼륨 속성이 없어 못 한다.
   ⏯ 미디어 키로 재생을 멈추는 방법은 "지금 재생 중" 앱이 없으면 macOS 가 음악 앱을 열어 버려서 뺐다.
-- **업데이트 확인**은 GitHub 릴리스 API. 다운로드는 `releases/latest/download/Brefly.dmg` 고정 이름에 기댄다 —
-  릴리스에 그 파일을 꼭 같이 올린다.
+- **업데이트는 Sparkle 2.10.0 이 한다**(0.7.0, 2026-09-26). 전에는 새 버전이 있으면 브라우저로 DMG 주소를
+  열어 주기만 해서, 사용자가 앱 종료 → DMG 열기 → 끌어넣기 → 교체 확인 **네 단계**를 손으로 해야 했다.
+  0.6.0·0.6.1 을 업데이트로 받은 사람이 **0명**이었다. 그래서 갈아치웠다.
+  프레임워크는 `vendor/Sparkle.framework` 에 커밋해 뒀다 — 내려받는 스크립트로 두면 다른 맥에서
+  이어받을 때 준비 단계가 하나 더 는다. `Updater.swift` 가 `SPUStandardUpdaterController` 를 감싸고,
+  컨트롤러는 앱이 사는 동안 살아 있어야 해서 전역으로 붙잡아 둔다. 기본 하루 한 번 확인.
+  `UpdateChecker` 에 남은 GitHub API 조회는 `--check-update` 진단 플래그 전용이다 —
+  업데이트 동작 자체와 무관하니 그걸로 테스트하지 말 것.
 - 시안: claude.ai/design 프로젝트 `33c3d303-b550-452a-a846-8e568db7e5a0` (Voice Summary App.dc.html,
   Brefly Onboarding.dc.html). 팔레트·로고 경로는 `Theme.swift` 에 옮겨 놨다.
 
