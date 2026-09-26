@@ -17,15 +17,22 @@ git 규칙(브랜치·커밋·PR)은 전역 `git-workflow` 스킬을 따른다. 
 
 다른 컴퓨터·다른 세션이 이어서 작업할 때 먼저 볼 것. **끝나면 지운다** — 오래 두면 거짓말이 된다.
 
-- **다운로드 측정.** 0.6.0 부터 신규와 기존이 파일명으로 갈린다.
-  `Brefly.dmg` = 새로 받는 사람, `Brefly-X.Y.Z.dmg` = 기존 사용자 업데이트(= 실사용자 하한선).
-  2026-09-26 기준 총 39회이고 **0.6.0·0.6.1 은 둘 다 0회** — 아직 업데이트한 사람이 없다.
-  `gh api repos/yunuchoiii/brefly/releases --jq '[.[].assets[].download_count] | add'`
+- **자동 업데이트가 실제로 되는지는 0.7.1 에서야 확인된다.** 0.7.0 은 Sparkle 을 넣은 첫 버전이라
+  기존 사용자가 수동으로 받아야 한다. 다음 릴리스 때 **창이 스스로 뜨는지, 설치 후 재실행되는지**
+  사용자에게 확인을 부탁할 것. 0.7.0 에서 확인한 것은 여기까지다 — 앱이 실행 9초 뒤 피드를 확인하고
+  (`SULastCheckTime`), 배포된 appcast 의 서명이 DMG 와 맞고(`sign_update --verify`, 틀린 서명은 거부),
+  같은 버전이라 업데이트를 제안하지 않았다. **더 높은 버전을 만나는 경로는 아직 안 밟았다.**
+- **다운로드 수치는 0.7.0 이 분기점이다.** 0.6.0·0.6.1 의 버전 붙은 DMG 는 둘 다 0회였고
+  (수동 4단계라 아무도 안 했다), 0.7.0 도 수동이다. 0.7.1 부터가 진짜 자동 업데이트 수치다.
+  `gh api repos/yunuchoiii/brefly/releases --jq '[.[].assets[].download_count] | add'` (2026-09-26 기준 40)
   ⚠️ 검증한다고 DMG 를 curl 로 받지 말 것 — 집계에 섞인다(한 번 그래서 기준점이 오염됐다).
+  에셋 존재 확인은 `gh api repos/yunuchoiii/brefly/releases/tags/vX.Y.Z --jq '.assets[]'` 로 한다.
 - **GitHub Traffic 은 14일만 보관**된다. 2026-09-20 벨로그 글의 유입(`velog.io`)을 보려면 10월 4일 전에 봐야 한다.
   `gh api repos/yunuchoiii/brefly/traffic/popular/referrers`
 - SEO 는 Search Console 등록·사이트맵·색인 요청까지 끝났다. 남은 건 **백링크뿐이고 사람만 할 수 있다**
   (GeekNews·디스콰이엇 등). 올릴 때 "Brefly(브레플리)" 형태로 한글 이름을 같이 써야 이름이 연결된다.
+- ⚠️ **Sparkle 서명 개인키 백업을 사용자에게 아직 확인받지 못했다.** 로그인 키체인의
+  `https://sparkle-project.org` / 계정 `ed25519`. 잃으면 업데이트를 영영 못 보낸다.
 
 ## 빌드 · 검증 · 배포
 
@@ -56,6 +63,12 @@ git 규칙(브랜치·커밋·PR)은 전역 `git-workflow` 스킬을 따른다. 
   `appcast.xml`)만 본다. GitHub 릴리스를 올려도 appcast 가 그대로면 새 버전이 없는 것으로 보인다.
   `make-appcast.sh` 출력에 `sparkle:edSignature` 가 있는지 매번 확인할 것 — 비어 있으면 앱이 거부한다.
   비는 원인은 대개 DMG 안 앱의 Info.plist 에 `SUPublicEDKey` 가 없는 것이고, Sparkle 은 **경고 없이** 생략한다.
+  서명이 진짜 맞는지는 내려받지 않고 확인할 수 있다 — 배포된 appcast 에서 서명을 뽑아 로컬 DMG 와 대조한다.
+  ```bash
+  SIG=$(curl -sS https://yunuchoiii.github.io/brefly-pages/appcast.xml | sed -n 's/.*edSignature="\([^"]*\)".*/\1/p')
+  vendor/bin/sign_update --verify build/Brefly-X.Y.Z.dmg "$SIG"   # 통과하면 아무것도 안 나온다
+  ```
+  아무 출력이 없으면 통과다(틀리면 `failed to pass signing verification`). `-p` 와 `--verify` 는 같이 못 쓴다.
 - ⚠️ **Sparkle 업데이트 서명 개인키**는 로그인 키체인의 `https://sparkle-project.org` / 계정 `ed25519` 다.
   잃으면 기존 사용자에게 업데이트를 영영 보낼 수 없다 — 다시 설치하게 하는 것 말고 방법이 없다.
   Developer ID 인증서와 같이 백업한다.
