@@ -56,7 +56,7 @@ final class SettingsModel: ObservableObject {
     @Published var restoreClipboard = Prefs.restoreClipboard  { didSet { Prefs.restoreClipboard = restoreClipboard; changed() } }
     @Published var showErrorAlerts = Prefs.showErrorAlerts    { didSet { Prefs.showErrorAlerts = showErrorAlerts; changed() } }
     @Published var showResultPopover = Prefs.showResultPopover { didSet { Prefs.showResultPopover = showResultPopover; changed() } }
-    @Published var autoCheckUpdates = Prefs.autoCheckUpdates  { didSet { Prefs.autoCheckUpdates = autoCheckUpdates; changed() } }
+    @Published var autoCheckUpdates = Prefs.autoCheckUpdates  { didSet { Prefs.autoCheckUpdates = autoCheckUpdates; Updater.setAutomaticChecks(autoCheckUpdates); changed() } }
     @Published var showInDock = Prefs.showInDock              { didSet { Prefs.showInDock = showInDock; changed() } }
     @Published var duckMedia = Prefs.duckMediaWhileRecording  { didSet { Prefs.duckMediaWhileRecording = duckMedia; changed() } }
     @Published var recordingSounds = Prefs.recordingSounds    { didSet { Prefs.recordingSounds = recordingSounds; changed() } }

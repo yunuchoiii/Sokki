@@ -68,6 +68,14 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$DIR/Info.plist" "$APP/Contents/Info.plist"
 printf 'APPL????' > "$APP/Contents/PkgInfo"
 
+# --- Sparkle 프레임워크 ----------------------------------------------------
+# 앱 스스로 업데이트를 받아 교체하려면 Sparkle 이 번들 안에 들어가야 한다.
+# cp -R 로 심볼릭 링크를 그대로 옮긴다(rsync -L 같은 건 링크를 풀어 서명이 깨진다).
+echo "▶ Sparkle 프레임워크 넣는 중…"
+mkdir -p "$APP/Contents/Frameworks"
+rm -rf "$APP/Contents/Frameworks/Sparkle.framework"
+cp -R "$DIR/vendor/Sparkle.framework" "$APP/Contents/Frameworks/"
+
 # --- 컴파일 ---------------------------------------------------------------
 echo "▶ 컴파일 중…"
 swiftc \
@@ -83,6 +91,8 @@ swiftc \
   -framework Security \
   -framework ServiceManagement \
   -Xlinker -weak_framework -Xlinker FoundationModels \
+  -F "$DIR/vendor" -framework Sparkle \
+  -Xlinker -rpath -Xlinker @executable_path/../Frameworks \
   -o "$APP/Contents/MacOS/Brefly" \
   "$DIR/Sources/"*.swift
 
@@ -96,12 +106,32 @@ iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
 rm -rf "$ICONSET"
 
 # --- 서명 -----------------------------------------------------------------
+# ⚠️ 중첩 번들은 **안쪽부터** 따로 서명해야 한다. 앱만 서명하면 안쪽 서명이 없거나
+# 낡은 채로 남아 공증이 거부된다. Sparkle 이 배포하는 프레임워크는 서명이 안 되어 있어
+# (TeamIdentifier not set) 우리 인증서로 전부 다시 서명한다.
+# --deep 은 Apple 이 권하지 않는다. 순서를 직접 정해 하나씩 서명한다.
+sign_sparkle() {
+  local fw="$APP/Contents/Frameworks/Sparkle.framework"
+  local opts=("--force" "--sign" "$SIGN_ID")
+  [[ $DISTRIBUTION -eq 1 ]] && opts+=("--options" "runtime" "--timestamp")
+  for item in \
+    "$fw/Versions/B/XPCServices/Downloader.xpc" \
+    "$fw/Versions/B/XPCServices/Installer.xpc" \
+    "$fw/Versions/B/Updater.app" \
+    "$fw/Versions/B/Autoupdate" \
+    "$fw/Versions/B"
+  do
+    codesign "${opts[@]}" "$item"
+  done
+}
+sign_sparkle
+
 if [[ $DISTRIBUTION -eq 1 ]]; then
   echo "▶ Developer ID 로 서명 중… (하드닝 런타임 · 공증 가능)"
   codesign --force --sign "$SIGN_ID" --identifier "$BUNDLE_ID" \
     --options runtime --timestamp \
     --entitlements "$DIR/Brefly.entitlements" "$APP"
-  codesign --verify --strict --verbose=1 "$APP"
+  codesign --verify --deep --strict --verbose=1 "$APP"
 elif [[ $STABLE -eq 1 ]]; then
   echo "▶ '$SIGN_ID' 인증서로 서명 중… (권한 유지됨)"
   codesign --force --sign "$SIGN_ID" --identifier "$BUNDLE_ID" "$APP"
