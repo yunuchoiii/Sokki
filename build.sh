@@ -68,6 +68,12 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$DIR/Info.plist" "$APP/Contents/Info.plist"
 printf 'APPL????' > "$APP/Contents/PkgInfo"
 
+# 한국어를 쓰는 앱이라고 선언한다. 우리 UI 는 문구가 코드에 한국어로 박혀 있어 번역 파일이
+# 필요 없지만, .lproj 가 하나도 없으면 macOS 는 이 앱을 영어 앱으로 보고 프로세스 언어를
+# 영어로 고정한다. 그러면 Sparkle 이 ko.lproj 를 가지고 있어도 업데이트 창이 영어로 뜬다.
+# 빈 ko.lproj 만 있으면 된다 — 내용은 필요 없다.
+mkdir -p "$APP/Contents/Resources/ko.lproj"
+
 # --- Sparkle 프레임워크 ----------------------------------------------------
 # 앱 스스로 업데이트를 받아 교체하려면 Sparkle 이 번들 안에 들어가야 한다.
 # cp -R 로 심볼릭 링크를 그대로 옮긴다(rsync -L 같은 건 링크를 풀어 서명이 깨진다).
